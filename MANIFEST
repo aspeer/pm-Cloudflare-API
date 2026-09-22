@@ -1,5 +1,6 @@
 Changes
 bin/cloudflare-api
+bin/cloudflare-api.md
 lib/Cloudflare/API.pm
 lib/Cloudflare/API.pm.md
 lib/Cloudflare/API/Accounts.pm

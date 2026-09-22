@@ -251,6 +251,11 @@ cloudflare-api --resource workers --action upload_assets \
     <para>For the script's full option reference, run <command>cloudflare-api --man</command>. The <command>--help</command> form is shorter when you only need to recall an option name.</para>
   </section>
 
+  <section xml:id="utility-reference">
+    <title>Utility reference</title>
+    <para>The <link xlink:href="bin/cloudflare-api.md"><command>cloudflare-api</command> utility reference</link> documents the command's options, argument formats, pagination, output, and authentication in one place.</para>
+  </section>
+
   <section xml:id="licensing-and-credits">
     <title>Licensing and credits</title>
     <para><classname>Cloudflare::API</classname> is copyright © 2026 Andrew Speer. It is free software, available under the same terms as the Perl 5 programming language system itself.</para>

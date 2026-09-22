@@ -359,6 +359,10 @@ The examples above are a starting point. For the actual method names, arguments,
 
 For the script's full option reference, run `cloudflare-api --man`. The `--help` form is shorter when you only need to recall an option name.
 
+# Utility reference {#utility-reference}
+
+The [`cloudflare-api` utility reference](bin/cloudflare-api.md) documents the command's options, argument formats, pagination, output, and authentication in one place.
+
 # Licensing and credits {#licensing-and-credits}
 
 `Cloudflare::API` is copyright © 2026 Andrew Speer. It is free software, available under the same terms as the Perl 5 programming language system itself.
