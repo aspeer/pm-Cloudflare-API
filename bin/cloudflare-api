@@ -1,0 +1,511 @@
+#!/usr/bin/env perl
+#
+#  This file is part of Cloudflare::API.
+#
+#  This software is copyright (c) 2026 by Andrew Speer <andrew.speer@isolutions.com.au>.
+#
+#  This is free software; you can redistribute it and/or modify it under
+#  the same terms as the Perl 5 programming language system itself.
+#
+#  Full license text is available at:
+#
+#  <http://dev.perl.org/licenses/>
+#
+
+
+#
+#  Call Cloudflare management API methods from the command line
+#
+package main;
+
+
+#  Compiler pragmas
+#
+use strict qw(vars);
+use vars   qw($VERSION);
+use warnings;
+
+
+#  Use the base module
+#
+use Cloudflare::API;
+
+
+#  External modules
+#
+use Getopt::Long;
+use Pod::Usage;
+use JSON::PP;
+use Data::Dumper;
+use FindBin qw($Script);
+use IPC::Open3;
+use File::Spec;
+
+
+#  Local customisation
+#
+local $Data::Dumper::Indent=1;
+local $Data::Dumper::Sortkeys=1;
+
+
+#  Version Info, must be all one line for MakeMaker, CPAN.
+#
+$VERSION=$Cloudflare::API::VERSION;
+
+
+#  Only supported resource methods may be called by name
+#
+my %resource_method=(
+    accounts => [qw(list get)],
+    zones    => [qw(list get)],
+    workers  => [qw(list_scripts upload_script upload_version list_versions get_version upload_assets delete_script
+        list_deployments create_deployment get_deployment list_secrets add_secret
+        delete_secret get_subdomain set_subdomain list_routes create_route
+        update_route delete_route)],
+    r2       => [qw(list_buckets get_bucket create_bucket update_bucket delete_bucket)],
+    kv       => [qw(list_namespaces get_namespace create_namespace rename_namespace
+        delete_namespace list_keys get_value put_value delete_value)],
+    d1       => [qw(list_databases get_database create_database delete_database
+        update_database query_database query_sql)],
+    queues   => [qw(list_queues get_queue create_queue delete_queue update_queue
+        list_consumers create_consumer delete_consumer)],
+    hyperdrive => [qw(list_configs get_config create_config replace_config
+        update_config delete_config)],
+    secrets_store => [qw(list_stores get_store create_store delete_store
+        list_secrets get_secret create_secret update_secret delete_secret get_quota)]
+);
+
+
+#  Run main. Keep the script loadable by the local test suite.
+#
+exit main(\@ARGV) unless caller();
+
+
+#============================================================================
+
+
+sub main {
+
+
+    #  Get arguments and command line options
+    #
+    my $argv_ar=shift();
+    my (%opt, @arg, %param, @asset_source);
+    GetOptions(
+        \%opt,
+        my @opt=(
+        'resource=s',
+        'action=s',
+        'method=s',
+        'path=s',
+        'account-id=s',
+        'auth=s',
+        'output=s',
+        'full-response!',
+        'paginate!',
+        'max-pages=i',
+        'per-page=i',
+        'help|h|?',
+        'man',
+        'version',
+        'dump_opt|dump-opt|opt',
+        'asset=s' => sub { push(@asset_source, ['file', $_[1]]) },
+        'asset-list-json=s' => sub { push(@asset_source, ['json', $_[1]]) },
+        'asset-list-text=s' => sub { push(@asset_source, ['text', $_[1]]) },
+        'asset-list-stdin' => sub { push(@asset_source, ['stdin']) },
+        'arg=s' => sub { push(@arg, typed_value('string', $_[1])) },
+        'arg-bool=s' => sub { push(@arg, typed_value('bool', $_[1])) },
+        'arg-array=s' => sub { push(@arg, typed_value('array', $_[1])) },
+        'arg-hash=s' => sub { push(@arg, typed_value('hash', $_[1])) },
+        'arg-json=s' => sub { push(@arg, typed_value('json', $_[1])) },
+        'arg-json-file=s' => sub { push(@arg, typed_value('json-file', $_[1])) },
+        'arg-dumper-file=s' => sub { push(@arg, typed_value('dumper-file', $_[1])) },
+        'param=s' => sub { my ($key, $value)=parse_named('string', $_[1]); $param{$key}=$value },
+        'param-bool=s' => sub { my ($key, $value)=parse_named('bool', $_[1]); $param{$key}=$value },
+        'param-json=s' => sub { my ($key, $value)=parse_named('json', $_[1]); $param{$key}=$value },
+        'param-json-file=s' => sub { my ($key, $value)=parse_named('json-file', $_[1]); $param{$key}=$value },
+        'param-dumper-file=s' => sub { my ($key, $value)=parse_named('dumper-file', $_[1]); $param{$key}=$value }
+        )
+    ) || pod2usage(2);
+    pod2usage(1) if $opt{'help'};
+    pod2usage(-verbose => 2, -exitval => 0) if $opt{'man'};
+    $opt{'version'} && do {print "$Script $VERSION\n"; return 0};
+    die "unexpected positional arguments\n" if @$argv_ar;
+
+
+    #  Check the output format and pagination limits before making a request
+    #
+    $opt{'output'}='json' unless defined($opt{'output'});
+    die "output must be json or dumper\n" unless $opt{'output'}=~/\A(?:json|dumper)\z/;
+    die "auth must be wrangler\n" if defined($opt{'auth'})&&$opt{'auth'} ne 'wrangler';
+    die "max-pages must be positive\n" if defined($opt{'max-pages'})&&$opt{'max-pages'}<1;
+    die "per-page must be positive\n" if defined($opt{'per-page'})&&$opt{'per-page'}<1;
+    $param{'per_page'}=$opt{'per-page'} if defined($opt{'per-page'});
+
+
+    #  Accept either a raw API request or a supported named resource method
+    #
+    my $raw_fg=defined($opt{'method'})||defined($opt{'path'});
+    if ($raw_fg) {
+        die "--method and --path are both required\n"
+            unless defined($opt{'method'})&&defined($opt{'path'});
+        die "--resource and --action cannot accompany --method\n"
+            if defined($opt{'resource'})||defined($opt{'action'});
+        die "raw request accepts at most one body argument\n" if @arg>1;
+    }
+    else {
+        my ($resource, $action)=@opt{qw(resource action)};
+        die "--resource and --action are required\n"
+            unless defined($resource)&&defined($action);
+        die "unknown resource or action\n" unless exists($resource_method{$resource})&&
+            grep { $_ eq $action } @{$resource_method{$resource}};
+    }
+    die "--paginate requires a list action\n"
+        if $opt{'paginate'}&&($raw_fg||$opt{'action'}!~/\Alist(?:_|\z)/);
+    die "--max-pages requires --paginate\n" if defined($opt{'max-pages'})&&!$opt{'paginate'};
+
+
+    #  Combine asset sources only for the named Worker asset upload action
+    #
+    if (@asset_source) {
+        die "asset list options require --resource workers --action upload_assets\n"
+            if $raw_fg||$opt{'resource'} ne 'workers'||$opt{'action'} ne 'upload_assets';
+        die "asset list options require one Worker name and no other source argument\n"
+            unless @arg==1&&defined($arg[0])&&!ref($arg[0]);
+        die "--asset-list-stdin may be used only once\n"
+            if 1<grep { $_->[0] eq 'stdin' } @asset_source;
+        my @asset;
+        foreach my $source_ar (@asset_source) {
+            my ($type, $value)=@$source_ar;
+            if ($type eq 'file') {
+                push(@asset, $value);
+            }
+            elsif ($type eq 'json') {
+                push(@asset, @{typed_value('array', read_file($value))});
+            }
+            elsif ($type eq 'text') {
+                open(my $asset_fh, '<', $value) || die "unable to open $value: $!\n";
+                push(@asset, @{read_asset_lines($asset_fh)});
+                close($asset_fh) || die "unable to close $value: $!\n";
+            }
+            else {
+                push(@asset, @{read_asset_lines(\*STDIN)});
+            }
+        }
+        die "asset list is empty\n" unless @asset;
+        push(@arg, \@asset);
+    }
+
+
+    #  Dump parsed options without needing a Cloudflare token
+    #
+    if ($opt{'dump_opt'}) {
+        die "dump_opt is unsafe for secret-bearing actions\n"
+            if !$raw_fg&&(($opt{'resource'} eq 'secrets_store'&&
+                $opt{'action'}=~/\A(?:create_secret|update_secret)\z/)||
+                ($opt{'resource'} eq 'workers'&&$opt{'action'} eq 'add_secret')||
+                ($opt{'resource'} eq 'hyperdrive'&&
+                $opt{'action'}=~/\A(?:create_config|replace_config|update_config)\z/));
+        my $out_hr={ options => \%opt, arguments => \@arg, parameters => \%param };
+        print Data::Dumper::Dumper($out_hr);
+        return 0;
+    }
+
+
+    #  Resolve optional Wrangler authentication before creating the client
+    #
+    my %client_opt;
+    $client_opt{'account_id'}=$opt{'account-id'} if defined($opt{'account-id'});
+    $client_opt{'token'}=wrangler_token() if defined($opt{'auth'});
+    my $api_or=Cloudflare::API->new(%client_opt);
+    my $invoke_cr=sub {
+        my ($query_hr, $full)=@_;
+        if ($raw_fg) {
+            my %request=(query => $query_hr, full_response => $full);
+            $request{'json'}=$arg[0] if @arg;
+            return $api_or->request(uc($opt{'method'}), $opt{'path'}, %request);
+        }
+        my $resource=$opt{'resource'};
+        my $object_or=$api_or->$resource();
+        my $action=$opt{'action'};
+        return $object_or->$action(@arg, %$query_hr, full_response => $full);
+    };
+
+
+    #  Follow list pages when requested, retaining each page boundary
+    #
+    my $result;
+    if ($opt{'paginate'}) {
+        my @pages;
+        my $query_hr={ %param };
+        my %seen;
+        my $page=defined($query_hr->{'page'}) ? $query_hr->{'page'} : 1;
+        while (1) {
+            my $envelope_hr=$invoke_cr->($query_hr, 1);
+            push(@pages, $opt{'full-response'} ? $envelope_hr : $envelope_hr->{'result'});
+            last if defined($opt{'max-pages'})&&@pages>=$opt{'max-pages'};
+            my $next_hr=next_query($query_hr, $envelope_hr, $page, \%seen);
+            last unless $next_hr;
+            $query_hr=$next_hr;
+            $page=defined($query_hr->{'page'}) ? $query_hr->{'page'} : $page+1;
+        }
+        $result=\@pages;
+    }
+    else {
+        $result=$invoke_cr->(\%param, $opt{'full-response'});
+    }
+
+
+    #  Print the result in the requested format
+    #
+    if ($opt{'output'} eq 'dumper') {
+        print Data::Dumper::Dumper($result);
+    }
+    else {
+        print JSON::PP->new()->canonical()->pretty()->encode($result);
+    }
+
+
+    #  Done
+    #
+    return 0;
+
+}
+
+
+sub wrangler_token {
+
+
+    #  Ask Wrangler to refresh its login and return the selected bearer token
+    #
+    my $null_fn=File::Spec->devnull();
+    open(my $error_fh, '>', $null_fn) || die "unable to open null device: $!\n";
+    my $output_fh;
+    my $pid=eval { open3(undef, $output_fh, $error_fh,
+        'wrangler', 'auth', 'token', '--json') };
+    die "unable to start wrangler auth token\n" if $@;
+    local $/;
+    my $output=<$output_fh>;
+    close($output_fh);
+    waitpid($pid, 0);
+    die "wrangler auth token failed; check Wrangler login and configuration\n" if $?;
+
+    my $credential_hr=eval { JSON::PP->new()->decode($output) };
+    die "wrangler auth token returned invalid JSON\n"
+        if $@||ref($credential_hr) ne 'HASH';
+    die "wrangler auth token returned unsupported credential type\n"
+        unless defined($credential_hr->{'type'})&&
+            $credential_hr->{'type'}=~/\A(?:api_token|oauth)\z/;
+    my $token=$credential_hr->{'token'};
+    die "wrangler auth token returned no usable token\n"
+        unless defined($token)&&!ref($token)&&$token=~/\A[^\x00-\x20\x7f]+\z/;
+    return $token;
+
+}
+
+
+sub read_file {
+
+    #  Read JSON or a trusted Data::Dumper file as a single value
+    #
+    my $path_fn=shift();
+    open(my $file_fh, '<', $path_fn) || die "unable to open $path_fn: $!\n";
+    local $/;
+    my $content=<$file_fh>;
+    close($file_fh) || die "unable to close $path_fn: $!\n";
+    return $content;
+
+}
+
+
+sub read_asset_lines {
+
+
+    #  Keep filename whitespace intact; only empty lines are separators
+    #
+    my $file_fh=shift();
+    my @file;
+    while (my $path_fn=<$file_fh>) {
+        chomp($path_fn);
+        $path_fn=~s/\r\z//;
+        next unless length($path_fn);
+        push(@file, $path_fn);
+    }
+    die "unable to read asset list: $!\n" if !eof($file_fh);
+    return \@file;
+
+}
+
+
+sub typed_value {
+
+    #  Keep strings literal; decode structured and boolean arguments
+    #
+    my ($type, $value)=@_;
+    return $value if $type eq 'string';
+    if ($type eq 'bool') {
+        die "boolean must be true or false\n" unless $value=~/\A(?:true|false)\z/i;
+        return $value=~/\Atrue\z/i ? JSON::PP::true : JSON::PP::false;
+    }
+    if ($type eq 'json-file') {
+        $value=read_file($value);
+        $type='json';
+    }
+    if ($type eq 'dumper-file') {
+        #  This executes Perl, so the caller must supply a trusted file
+        #
+        my $source=read_file($value);
+        my $result=eval 'no strict; my $VAR1; '.$source;
+        die "unable to evaluate trusted Data::Dumper file $value: $@\n" if $@;
+        return $result;
+    }
+    my $decoded=eval { JSON::PP->new()->decode($value) };
+    die "invalid JSON: $@\n" if $@;
+    die "$type requires a JSON array\n" if $type eq 'array'&&ref($decoded) ne 'ARRAY';
+    die "$type requires a JSON object\n" if $type eq 'hash'&&ref($decoded) ne 'HASH';
+    return $decoded;
+
+}
+
+
+sub parse_named {
+
+    #  Split only at the first equals sign so values can contain equals signs
+    #
+    my ($type, $input)=@_;
+    my ($name, $value)=split(/=/, $input, 2);
+    die "named parameter must be NAME=VALUE\n"
+        unless defined($value)&&$name=~/\A[A-Za-z_][A-Za-z0-9_]*\z/;
+    return ($name, typed_value($type, $value));
+
+}
+
+
+sub next_query {
+
+    #  Prefer a cursor when Cloudflare supplies one
+    #
+    my ($query_hr, $envelope_hr, $page, $seen_hr)=@_;
+    my $info_hr=$envelope_hr->{'result_info'};
+    return unless ref($info_hr) eq 'HASH';
+    if (defined($info_hr->{'cursor'})&&length($info_hr->{'cursor'})) {
+        my $cursor=$info_hr->{'cursor'};
+        die "pagination cursor repeated\n" if $seen_hr->{$cursor}++;
+        return { %$query_hr, cursor => $cursor };
+    }
+
+
+    #  Otherwise calculate the next numbered page, if any
+    #
+    my $total=$info_hr->{'total_pages'};
+    if (!defined($total)&&defined($info_hr->{'total_count'})&&defined($info_hr->{'per_page'})&&
+        $info_hr->{'per_page'}>0) {
+        $total=int(($info_hr->{'total_count'}+$info_hr->{'per_page'}-1)/$info_hr->{'per_page'});
+    }
+    return unless defined($total)&&$page<$total;
+    return { %$query_hr, page => $page+1 };
+
+}
+
+
+1;
+
+__END__
+
+=head1 NAME
+
+cloudflare-api - invoke Cloudflare::API resource methods
+
+=head1 SYNOPSIS
+
+ cloudflare-api --resource r2 --action list_buckets --paginate --max-pages 2
+ cloudflare-api --resource kv --action create_namespace --arg-json '{"title":"demo"}'
+ cloudflare-api --resource workers --action upload_assets --arg my-app --arg dist --param prefix=/docs
+ cloudflare-api --resource workers --action upload_assets --arg my-app --asset index.html --asset css/site.css
+ find dist -type f | cloudflare-api --resource workers --action upload_assets --arg my-app --asset-list-stdin
+ cloudflare-api --method GET --path /accounts --output dumper
+
+=head1 DESCRIPTION
+
+Reads C<CLOUDFLARE_API_TOKEN> and optionally C<CLOUDFLARE_ACCOUNT_ID> from
+the environment. Use C<--account-id> to select another account, or
+C<--auth=wrangler> to obtain a bearer token from Wrangler. No token option
+is provided, so credentials do not enter the shell command line.
+For Worker static assets, C<upload_assets> accepts a directory argument,
+recursively uploading its files, or an array argument supplied with
+C<--arg-json-file>. The asset list options below provide other ways to build
+that array. Use C<--param prefix=/docs> to place files beneath a URL prefix.
+Asset upload returns a completion token; it does not deploy the Worker.
+
+=head1 OPTIONS
+
+=over
+
+=item C<--auth=wrangler>
+
+Run C<wrangler auth token --json> and use its API token or refreshed OAuth
+token. Wrangler must be installed and authenticated. If no Wrangler login
+exists, run C<wrangler login> separately. Wrangler gives an existing
+C<CLOUDFLARE_API_TOKEN> priority over its OAuth login. API key and email
+credentials are not supported by this command.
+
+=item C<--resource NAME --action NAME>
+
+Call a named resource method. Resource names are accounts, zones, workers,
+r2, kv, d1, queues, hyperdrive, and secrets_store. Use
+C<--method VERB --path /relative/path> for a
+low-level request; the path is relative to the API root, such as C</accounts>.
+
+=item C<--arg VALUE>, C<--arg-bool true|false>, C<--arg-array JSON>, C<--arg-hash JSON>, C<--arg-json JSON>, C<--arg-json-file FILE>, C<--arg-dumper-file FILE>
+
+Add positional method arguments in their command-line order. In raw mode at
+most one argument is accepted and is sent as the JSON body. A Data::Dumper
+file is evaluated as Perl code. Use this option ONLY with files you trust.
+For write-only values, use C<--arg-json-file /dev/stdin> and pipe in the JSON
+body so the value does not appear in the process command line.
+
+=item C<--param NAME=VALUE>, C<--param-bool NAME=true|false>, C<--param-json NAME=JSON>, C<--param-json-file NAME=FILE>, C<--param-dumper-file NAME=FILE>
+
+Add named method arguments. The Data::Dumper file warning above also applies
+here. For list methods these are API query parameters; for raw mode all
+parameters are query parameters.
+
+=item C<--asset FILE>, C<--asset-list-json FILE>, C<--asset-list-text FILE>, C<--asset-list-stdin>
+
+Build a file list for C<--resource workers --action upload_assets>. Supply the
+Worker name with one C<--arg> and do not supply a second source argument.
+Repeat C<--asset> for individual files. Repeat C<--asset-list-json> for JSON
+arrays of filenames or entries with C<path>, optional relative URL C<name>,
+and optional C<content_type>. C<--asset-list-text> reads one filename per
+line; C<--asset-list-stdin> does the same from standard input and may be used
+once. Blank lines are ignored, and spaces in a filename are preserved.
+Sources combine in option order. Each bare filename uses its basename as
+the Worker URL path; duplicate URL paths are rejected. These options cannot
+be mixed with the older directory, array, or path-map source argument.
+
+=item C<--output json|dumper>
+
+Print JSON (default) or Data::Dumper output.
+
+=item C<--full-response>
+
+Return each complete Cloudflare envelope rather than its C<result>.
+
+=item C<--paginate>, C<--max-pages N>, C<--per-page N>
+
+Follow cursor or numbered pages for list actions. The output is an array of
+page results, preserving page boundaries. C<--max-pages> limits fetched pages;
+otherwise all available pages are fetched. C<--per-page> sets C<per_page>.
+
+=item C<--dump-opt>, C<--dump_opt>
+
+Show parsed options without connecting to Cloudflare. This may reveal values
+supplied as arguments; do not use it with secrets.
+
+=item C<--help>, C<--man>, C<--version>
+
+Show brief help, this manual, or the version.
+
+=back
+
+=cut

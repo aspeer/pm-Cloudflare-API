@@ -1,0 +1,171 @@
+# Cloudflare::API
+
+Cloudflare::API is a Perl client for managing Cloudflare compute and storage
+resources. It uses Cloudflare API tokens and `HTTP::API::Core` for transport.
+It does not build Worker projects or run npm; pass it prepared Worker modules
+and upload metadata instead. The command invokes Wrangler only with
+`--auth=wrangler` to obtain a token.
+
+The distribution requires Perl 5.10 or later, `HTTP::API::Core` 1.01 or
+later, and Perl HTTPS support through `IO::Socket::SSL`. Install the
+distribution with a CPAN client in the usual way.
+
+```perl
+use Cloudflare::API;
+
+my $api=Cloudflare::API->new(
+    token      => $ENV{'CLOUDFLARE_API_TOKEN'},
+    account_id => $ENV{'CLOUDFLARE_ACCOUNT_ID'}
+);
+
+my $bucket=$api->r2()->create_bucket({ name => 'my-app-assets' });
+my $database=$api->d1()->create_database({ name => 'my-app-data' });
+my $namespaces=$api->kv()->list_namespaces();
+```
+
+`token` and `account_id` may be omitted when `CLOUDFLARE_API_TOKEN` and
+`CLOUDFLARE_ACCOUNT_ID` are set. Account lookup and zone lookup do not require
+an account ID; account-scoped methods do. The client never reads Wrangler's
+login state. Use a token with only the permissions needed for the operations
+your script performs.
+
+Resource accessors are `accounts`, `zones`, `workers`, `r2`, `kv`, `d1`,
+`queues`, `hyperdrive`, and `secrets_store`. JSON methods return the decoded
+Cloudflare `result` by default.
+Pass `full_response => 1` to a named method to retain the full decoded
+envelope, including `result_info` for paginated lists:
+
+```perl
+my $page=$api->r2()->list_buckets(per_page => 20, full_response => 1);
+my $buckets=$page->{'result'}{'buckets'};
+```
+
+`request($method, $path, %options)` provides a low-level API for endpoints not
+yet covered by named methods. It also unwraps `result` by default;
+`request_full(...)` returns the whole decoded envelope. `raw_request(...)`
+returns the `HTTP::API::Core::Response` object for non-JSON content. Paths
+must begin with a single slash and cannot be absolute URLs, so the token is
+never sent to a caller-supplied host. Dynamic path components used with the
+low-level methods must be percent-encoded by the caller.
+
+HTTP and transport failures are thrown as `HTTP::API::Core::Error` objects.
+An HTTP-successful response with `success: false` is thrown as
+`Cloudflare::API::Error`, retaining Cloudflare's `errors`, `messages`, and
+the HTTP response object. Do not log tokens or secret bodies when handling
+errors.
+
+## Worker uploads
+
+`upload_script` accepts prepared modules in memory or by file path. Supply
+Cloudflare's multipart metadata, including `main_module` and preferably a
+`compatibility_date`. The file name must match `main_module` for the entry
+point. Uploading through this endpoint deploys the Worker immediately.
+
+```perl
+my $worker=$api->workers()->upload_script('my-app',
+    metadata => {
+        main_module        => 'worker.mjs',
+        compatibility_date => '2026-09-22',
+        bindings           => [
+            { type => 'r2_bucket', name => 'ASSETS', bucket_name => 'my-app-assets' }
+        ]
+    },
+    files => [
+        { name => 'worker.mjs', path => 'dist/worker.mjs' }
+    ]
+);
+```
+
+Each file entry needs a `name` and either `path` or `content`. `content_type`
+defaults to `application/javascript+module`; set it explicitly for WASM or
+other module types. Uploads are assembled in memory. `download_script`
+returns the raw HTTP response object. Worker routes are zone-scoped and
+require an explicit zone ID. Secrets can be added after upload with
+`add_secret`; never place their values in source control.
+
+Use `upload_version` with the same `metadata` and `files` arguments to stage
+a Worker version without deploying it; `create_deployment` activates that
+version. For static files, `upload_assets($name, $source, %options)` accepts a
+directory (recursively), an array reference of filenames or file entries, or
+the existing URL-path map. Pass `prefix => '/docs'` to upload beneath a URL
+path instead of the Worker root. It uploads missing assets and returns a
+completion JWT. Put that JWT in the version metadata as
+`assets => { jwt => $jwt }`, alongside an assets binding. See the
+[Workers sidecar](lib/Cloudflare/API/Workers.pm.md) for the full sequence.
+The `cloudflare-api` command also accepts repeatable `--asset FILE`, JSON and
+line-based file lists, and a line-based `--asset-list-stdin` for this action.
+
+## Current resource methods
+
+| Resource | Methods |
+| --- | --- |
+| Accounts | `list`, `get` |
+| Zones | `list`, `get` |
+| Workers | `list_scripts`, `download_script`, `upload_script`, `upload_version`, `list_versions`, `get_version`, `upload_assets`, `delete_script`, `list_deployments`, `get_deployment`, `create_deployment`, `list_secrets`, `add_secret`, `delete_secret`, `get_subdomain`, `set_subdomain`, `list_routes`, `create_route`, `update_route`, `delete_route` |
+| R2 | `list_buckets`, `get_bucket`, `create_bucket`, `update_bucket`, `delete_bucket` |
+| KV | `list_namespaces`, `get_namespace`, `create_namespace`, `rename_namespace`, `delete_namespace`, `list_keys`, `get_value`, `put_value`, `delete_value` |
+| D1 | `list_databases`, `get_database`, `create_database`, `update_database`, `delete_database`, `query_database`, `query_sql` |
+| Queues | `list_queues`, `get_queue`, `create_queue`, `update_queue`, `delete_queue`, `list_consumers`, `create_consumer`, `delete_consumer` |
+| Hyperdrive | `list_configs`, `get_config`, `create_config`, `replace_config`, `update_config`, `delete_config` |
+| Secrets Store | `list_stores`, `get_store`, `create_store`, `delete_store`, `list_secrets`, `get_secret`, `create_secret`, `update_secret`, `delete_secret`, `get_quota` |
+
+Create and update methods take a hash reference containing Cloudflare's
+request body. Methods do not try to make resource creation idempotent or
+silently replace existing resources. Deleting a resource calls Cloudflare's
+delete endpoint; there is no automatic cascade or rollback.
+
+The named method set is intentionally smaller than Cloudflare's API. Use the
+low-level request methods for supported endpoints not yet wrapped, then add a
+named method when an operation has a clear, stable shape.
+
+Hyperdrive methods manage the connection configuration; SQL goes through a
+Worker binding and a database driver, not Cloudflare's REST API. Secrets
+Store values are write-only. Avoid placing secrets in command-line arguments
+or `dump_opt` output.
+
+## Command-line client
+
+The installed `cloudflare-api` command calls named methods using the same
+environment credentials as the module. For example:
+
+```sh
+cloudflare-api --resource r2 --action list_buckets --paginate --max-pages 2
+cloudflare-api --resource kv --action create_namespace --arg-json '{"title":"my-app-cache"}'
+cloudflare-api --resource zones --action list --param status=active --output dumper
+cloudflare-api --method GET --path /accounts --full-response
+```
+
+`--arg` passes a string positional argument; `--arg-bool`, `--arg-array`,
+`--arg-hash`, and `--arg-json` pass typed values. `--arg-json-file` reads a
+JSON file. The corresponding `--param`, `--param-bool`, `--param-json`, and
+`--param-json-file` options pass named arguments. Repeated `--arg` options
+retain their order. For example, `--resource workers --action upload_script`
+accepts the Worker name via `--arg` and its `metadata` and `files` via
+`--param-json-file` or `--param-json`. `--output` selects JSON (default) or
+Data::Dumper. `--full-response` includes Cloudflare's response envelope.
+
+`--paginate` follows numbered or cursor-based pages for list methods and
+returns an array of page results. Use `--per-page` to request a page size and
+`--max-pages` to cap the number of requests. Without a cap, the command
+fetches every available page. For example, to inspect just the first two
+pages of KV namespaces:
+
+```sh
+cloudflare-api --resource kv --action list_namespaces --paginate \
+    --per-page 20 --max-pages 2 --full-response
+```
+
+`--arg-dumper-file` and `--param-dumper-file` evaluate their file contents as
+Perl code. Use them only with files you trust; an untrusted Data::Dumper file
+can execute arbitrary code. Prefer JSON files for data from other sources.
+See `cloudflare-api --man` for all options. Supply a token through
+`CLOUDFLARE_API_TOKEN`, or use `--auth=wrangler` to obtain one from an existing
+Wrangler login. A token is never supplied on the command line.
+
+The default test suite uses a mock transport and makes no network requests.
+For an explicitly authorised live check in an account where disposable
+resources are permitted, set
+`CLOUDFLARE_API_LIVE_TEST=1`, `CLOUDFLARE_API_TOKEN`, and
+`CLOUDFLARE_ACCOUNT_ID`, then run `prove -Ilib xt/live.t`. That optional test
+creates uniquely named resources and attempts to remove only resources it
+created. Check its output for any cleanup failures before re-running it.

@@ -1,0 +1,5 @@
+Revision history for Cloudflare::API
+
+0.01  Unreleased
+    Initial account, zone, Workers, R2, KV, D1, and Queues management client.
+    Add a typed command-line client with JSON/Data::Dumper output and pagination.
