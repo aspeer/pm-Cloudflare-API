@@ -273,19 +273,9 @@ Named resource methods normally return the JSON `result`. Pass `full_response =>
 
 Andrew Speer <andrew.speer@isolutions.com.au>
 
-# LICENSE and COPYRIGHT
+# LICENSE and COPYRIGHT #
 
-This file is part of Cloudflare::API.
-
-This software is copyright (c) 2026 by Andrew Speer <andrew.speer@isolutions.com.au>.
-
-This is free software; you can redistribute it and/or modify it under
-the same terms as the Perl 5 programming language system itself.
-
-Full license text is available at:
-
-<http://dev.perl.org/licenses/>
-
+Copyright (c) 2026 Andrew Speer. This software is free software; you can redistribute it and/or modify it under the same terms as the Perl 5 programming language system itself.
 
 =end markdown
 
@@ -324,57 +314,57 @@ Each accessor creates a resource object. Consult its own man page for arguments,
 
 =item *
 
-B<L<Cloudflare::API::Accounts|API/Accounts.pm.md>> (C<accounts()>) lists and retrieves accounts visible to the token.
+B<L<Cloudflare::API::Accounts|Cloudflare::API::Accounts>> (C<accounts()>) lists and retrieves accounts visible to the token.
 
 
 =item *
 
-B<L<Cloudflare::API::Zones|API/Zones.pm.md>> (C<zones()>) lists and retrieves zones.
+B<L<Cloudflare::API::Zones|Cloudflare::API::Zones>> (C<zones()>) lists and retrieves zones.
 
 
 =item *
 
-B<L<Cloudflare::API::Workers|API/Workers.pm.md>> (C<workers()>) manages scripts, versions, assets, deployments, secrets, subdomains, and zone routes.
+B<L<Cloudflare::API::Workers|Cloudflare::API::Workers>> (C<workers()>) manages scripts, versions, assets, deployments, secrets, subdomains, and zone routes.
 
 
 =item *
 
-B<L<Cloudflare::API::R2|API/R2.pm.md>> (C<r2()>) manages R2 buckets.
+B<L<Cloudflare::API::R2|Cloudflare::API::R2>> (C<r2()>) manages R2 buckets.
 
 
 =item *
 
-B<L<Cloudflare::API::KV|API/KV.pm.md>> (C<kv()>) manages Workers KV namespaces, keys, and raw values.
+B<L<Cloudflare::API::KV|Cloudflare::API::KV>> (C<kv()>) manages Workers KV namespaces, keys, and raw values.
 
 
 =item *
 
-B<L<Cloudflare::API::D1|API/D1.pm.md>> (C<d1()>) manages D1 databases and runs REST SQL queries.
+B<L<Cloudflare::API::D1|Cloudflare::API::D1>> (C<d1()>) manages D1 databases and runs REST SQL queries.
 
 
 =item *
 
-B<L<Cloudflare::API::Queues|API/Queues.pm.md>> (C<queues()>) manages queues and consumers.
+B<L<Cloudflare::API::Queues|Cloudflare::API::Queues>> (C<queues()>) manages queues and consumers.
 
 
 =item *
 
-B<L<Cloudflare::API::Hyperdrive|API/Hyperdrive.pm.md>> (C<hyperdrive()>) manages database connection configurations.
+B<L<Cloudflare::API::Hyperdrive|Cloudflare::API::Hyperdrive>> (C<hyperdrive()>) manages database connection configurations.
 
 
 =item *
 
-B<L<Cloudflare::API::SecretsStore|API/SecretsStore.pm.md>> (C<secrets_store()>) manages stores and write-only secrets.
+B<L<Cloudflare::API::SecretsStore|Cloudflare::API::SecretsStore>> (C<secrets_store()>) manages stores and write-only secrets.
 
 
 =item *
 
-B<L<Cloudflare::API::Error|API/Error.pm.md>> represents a Cloudflare JSON envelope reporting failure despite HTTP success.
+B<L<Cloudflare::API::Error|Cloudflare::API::Error>> represents a Cloudflare JSON envelope reporting failure despite HTTP success.
 
 
 =item *
 
-B<L<Cloudflare::API::Resource|API/Resource.pm.md>> is the shared base class for resource objects; applications normally use the accessors above rather than constructing it.
+B<L<Cloudflare::API::Resource|Cloudflare::API::Resource>> is the shared base class for resource objects; applications normally use the accessors above rather than constructing it.
 
 
 =back

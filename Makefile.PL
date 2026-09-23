@@ -28,13 +28,13 @@ WriteMakefile(
         'meta-spec' => {version => 2},
         resources   => {
             bugtracker => {
-                web => 'https://gitea.isolutions.com.au/aspeer/pm-Cloudflare-API/issues'
+                web => 'https://github.com/aspeer/pm-Cloudflare-API/issues'
             },
-            homepage   => 'https://gitea.isolutions.com.au/aspeer/pm-Cloudflare-API',
+            homepage   => 'https://github.com/aspeer/pm-Cloudflare-API',
             repository => {
                 type => 'git',
-                url  => 'https://gitea.isolutions.com.au/aspeer/pm-Cloudflare-API.git',
-                web  => 'https://gitea.isolutions.com.au/aspeer/pm-Cloudflare-API'
+                url  => 'https://github.com/aspeer/pm-Cloudflare-API.git',
+                web  => 'https://github.com/aspeer/pm-Cloudflare-API'
             }
         }
     }
