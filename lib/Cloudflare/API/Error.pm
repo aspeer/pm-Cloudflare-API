@@ -27,7 +27,7 @@ use overload '""' => 'as_string', fallback => 1;
 
 #  Version information
 #
-$VERSION='1.005';
+$VERSION='1.006';
 
 
 #  All done. Positive return

@@ -28,7 +28,7 @@ use Cloudflare::API::Resource;
 
 #  Version information
 #
-$VERSION='1.005';
+$VERSION='1.006';
 
 
 #  All done. Positive return

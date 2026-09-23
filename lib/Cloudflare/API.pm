@@ -32,7 +32,7 @@ use Cloudflare::API::Error;
 
 #  Version information
 #
-$VERSION='1.005';
+$VERSION='1.006';
 
 
 #  All done. Positive return
