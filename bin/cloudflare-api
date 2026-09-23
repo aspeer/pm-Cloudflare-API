@@ -50,7 +50,7 @@ local $Data::Dumper::Sortkeys=1;
 
 #  Version Info, must be all one line for MakeMaker, CPAN.
 #
-$VERSION='1.006';
+$VERSION='1.007';
 
 
 #  Only supported resource methods may be called by name
