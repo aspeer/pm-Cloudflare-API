@@ -160,7 +160,10 @@ Perl code. Use them only with files you trust; an untrusted Data::Dumper file
 can execute arbitrary code. Prefer JSON files for data from other sources.
 See `cloudflare-api --man` for all options. Supply a token through
 `CLOUDFLARE_API_TOKEN`, or use `--auth=wrangler` to obtain one from an existing
-Wrangler login. A token is never supplied on the command line.
+Wrangler login. For account-scoped named methods, the Wrangler option also
+uses the sole account reported by `wrangler whoami`; select explicitly with
+`--account-id` or `CLOUDFLARE_ACCOUNT_ID` when several accounts are available.
+A token is never supplied on the command line.
 
 The default test suite uses a mock transport and makes no network requests.
 For an explicitly authorised live check in an account where disposable

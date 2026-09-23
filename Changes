@@ -1,5 +1,10 @@
 Revision history for Cloudflare::API
 
-0.01  Unreleased
-    Initial account, zone, Workers, R2, KV, D1, and Queues management client.
-    Add a typed command-line client with JSON/Data::Dumper output and pagination.
+0.01  2026-09-23
+    Initial client for Accounts, Zones, Workers, R2, KV, D1, Queues,
+    Hyperdrive, and Secrets Store.
+    Manage Worker scripts, versions, deployments, secrets, subdomains, routes,
+    and static assets.
+    Add a typed command-line client with JSON or Data::Dumper output,
+    pagination, file and asset inputs, and Wrangler authentication with account
+    discovery.

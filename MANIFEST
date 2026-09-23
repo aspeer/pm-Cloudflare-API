@@ -1,4 +1,5 @@
 Changes
+LICENSE
 bin/cloudflare-api
 bin/cloudflare-api.md
 lib/Cloudflare/API.pm
@@ -27,6 +28,7 @@ lib/Cloudflare/API/Zones.pm
 lib/Cloudflare/API/Zones.pm.md
 Makefile.PL
 MANIFEST			This list of files
+MANIFEST.SKIP
 README.md
 doc/cloudflare-api.xml
 t/01-client.t
@@ -35,3 +37,4 @@ t/03-workers.t
 t/04-cli.t
 xt/live.t
 README
+doc/cloudflare-api.md

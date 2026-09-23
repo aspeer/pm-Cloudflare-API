@@ -33,11 +33,11 @@ Choose one mode: `--resource NAME --action NAME` for a named method, or `--metho
 
 * **--account-id ID**
 
-    Override `CLOUDFLARE_ACCOUNT_ID` for this invocation. Account-scoped methods require an ID; account and zone lookups do not.
+    Override `CLOUDFLARE_ACCOUNT_ID` and Wrangler account discovery for this invocation. Account-scoped methods require an ID; account and zone lookups do not.
 
 * **--auth=wrangler**
 
-    Run `wrangler auth token --json` and use its API token or refreshed OAuth token instead of the environment token. Wrangler must be installed and logged in. Run `wrangler login` separately if necessary. Wrangler itself prioritizes an existing `CLOUDFLARE_API_TOKEN` over its OAuth login. API key and email credentials are not supported. No token option is accepted on the command line.
+    Run `wrangler auth token --json` and use its API token or refreshed OAuth token instead of the environment token. For an account-scoped named method, also run `wrangler whoami --json` and use the account ID when exactly one account is available. Select among multiple accounts with `--account-id` or `CLOUDFLARE_ACCOUNT_ID`; these explicit values take precedence and skip account discovery. Wrangler must be installed and logged in. Run `wrangler login` separately if necessary. Wrangler itself prioritizes an existing `CLOUDFLARE_API_TOKEN` over its OAuth login. API key and email credentials are not supported. No token option is accepted on the command line.
 
 ## Positional and named arguments ##
 
@@ -120,7 +120,7 @@ Choose one mode: `--resource NAME --action NAME` for a named method, or `--metho
 # ENVIRONMENT #
 
 * **CLOUDFLARE_API_TOKEN** — Bearer token used unless `--auth=wrangler` is supplied. Obtain a token with only the permissions needed for the requested action.
-* **CLOUDFLARE_ACCOUNT_ID** — Default account ID for account-scoped resource methods; overridden by `--account-id`.
+* **CLOUDFLARE_ACCOUNT_ID** — Default account ID for account-scoped resource methods; overridden by `--account-id` and used in preference to Wrangler account discovery.
 
 # EXAMPLES #
 

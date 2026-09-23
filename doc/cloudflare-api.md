@@ -56,11 +56,10 @@ You can omit `account_id` for account and zone lookup, but account-scoped method
 If you have logged into Wrangler locally, the command can ask Wrangler for a token for each invocation. Wrangler refreshes an expired OAuth token before returning it:
 
 ``` sh
-export CLOUDFLARE_ACCOUNT_ID='your-account-id'
 cloudflare-api --auth=wrangler --resource workers --action list_scripts
 ```
 
-Run `wrangler login` separately if you have not logged in. Wrangler returns an existing `CLOUDFLARE_API_TOKEN` in preference to its OAuth login; it does not mint a newly scoped API token. API key and email credentials are not supported by `--auth=wrangler`. When you rely on a Wrangler login, the returned OAuth token has the permissions of that login. The module does not refresh a token passed to its constructor; the command asks Wrangler again on each invocation. See the [Wrangler auth token reference](https://developers.cloudflare.com/workers/wrangler/commands/general/#auth-token) for the current command behaviour.
+For an account-scoped named method, `--auth=wrangler` also uses `wrangler whoami --json` to obtain the account ID when the login has exactly one available account. If it has several, select one with `--account-id` or `CLOUDFLARE_ACCOUNT_ID`; either value takes precedence and skips account discovery. Run `wrangler login` separately if you have not logged in. Wrangler returns an existing `CLOUDFLARE_API_TOKEN` in preference to its OAuth login; it does not mint a newly scoped API token. API key and email credentials are not supported by `--auth=wrangler`. When you rely on a Wrangler login, the returned OAuth token has the permissions of that login. The module does not refresh a token passed to its constructor; the command asks Wrangler again on each invocation. See the [Wrangler auth token reference](https://developers.cloudflare.com/workers/wrangler/commands/general/#auth-token) for the current command behaviour.
 
 !!! tip
 

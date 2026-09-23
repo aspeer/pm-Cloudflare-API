@@ -50,7 +50,7 @@ local $Data::Dumper::Sortkeys=1;
 
 #  Version Info, must be all one line for MakeMaker, CPAN.
 #
-$VERSION=$Cloudflare::API::VERSION;
+$VERSION='0.01';
 
 
 #  Only supported resource methods may be called by name
@@ -216,7 +216,14 @@ sub main {
     #
     my %client_opt;
     $client_opt{'account_id'}=$opt{'account-id'} if defined($opt{'account-id'});
-    $client_opt{'token'}=wrangler_token() if defined($opt{'auth'});
+    if (defined($opt{'auth'})) {
+        $client_opt{'token'}=wrangler_token();
+        $client_opt{'account_id'}=wrangler_account_id()
+            if !$raw_fg&&$opt{'resource'}!~/\A(?:accounts|zones)\z/&&
+                !($opt{'resource'} eq 'workers'&&
+                    $opt{'action'}=~/\A(?:list|create|update|delete)_route(?:s)?\z/)&&
+                !defined($opt{'account-id'})&&!defined($ENV{'CLOUDFLARE_ACCOUNT_ID'});
+    }
     my $api_or=Cloudflare::API->new(%client_opt);
     my $invoke_cr=sub {
         my ($query_hr, $full)=@_;
@@ -278,21 +285,7 @@ sub wrangler_token {
 
     #  Ask Wrangler to refresh its login and return the selected bearer token
     #
-    my $null_fn=File::Spec->devnull();
-    open(my $error_fh, '>', $null_fn) || die "unable to open null device: $!\n";
-    my $output_fh;
-    my $pid=eval { open3(undef, $output_fh, $error_fh,
-        'wrangler', 'auth', 'token', '--json') };
-    die "unable to start wrangler auth token\n" if $@;
-    local $/;
-    my $output=<$output_fh>;
-    close($output_fh);
-    waitpid($pid, 0);
-    die "wrangler auth token failed; check Wrangler login and configuration\n" if $?;
-
-    my $credential_hr=eval { JSON::PP->new()->decode($output) };
-    die "wrangler auth token returned invalid JSON\n"
-        if $@||ref($credential_hr) ne 'HASH';
+    my $credential_hr=wrangler_json('auth token', qw(auth token --json));
     die "wrangler auth token returned unsupported credential type\n"
         unless defined($credential_hr->{'type'})&&
             $credential_hr->{'type'}=~/\A(?:api_token|oauth)\z/;
@@ -300,6 +293,53 @@ sub wrangler_token {
     die "wrangler auth token returned no usable token\n"
         unless defined($token)&&!ref($token)&&$token=~/\A[^\x00-\x20\x7f]+\z/;
     return $token;
+
+}
+
+
+sub wrangler_account_id {
+
+
+    #  Select the only account available through the active Wrangler login
+    #
+    my $user_hr=wrangler_json('whoami', qw(whoami --json));
+    my $account_ar=$user_hr->{'accounts'};
+    die "wrangler whoami returned no account list\n" unless ref($account_ar) eq 'ARRAY';
+    die "wrangler authentication has no available accounts\n" unless @$account_ar;
+    die "wrangler authentication has multiple accounts; use --account-id or CLOUDFLARE_ACCOUNT_ID\n"
+        if @$account_ar>1;
+    my $account_hr=$account_ar->[0];
+    die "wrangler whoami returned an invalid account\n" unless ref($account_hr) eq 'HASH';
+    my $account_id=$account_hr->{'id'};
+    die "wrangler whoami returned no usable account ID\n"
+        unless defined($account_id)&&!ref($account_id)&&
+            $account_id=~/\A[^\x00-\x20\x7f]+\z/;
+    return $account_id;
+
+}
+
+
+sub wrangler_json {
+
+
+    #  Run a Wrangler JSON command without a shell or exposing diagnostic output
+    #
+    my ($description, @arg)=@_;
+    my $null_fn=File::Spec->devnull();
+    open(my $error_fh, '>', $null_fn) || die "unable to open null device: $!\n";
+    my $output_fh;
+    my $pid=eval { open3(undef, $output_fh, $error_fh, 'wrangler', @arg) };
+    die "unable to start wrangler $description\n" if $@;
+    local $/;
+    my $output=<$output_fh>;
+    close($output_fh);
+    waitpid($pid, 0);
+    die "wrangler $description failed; check Wrangler login and configuration\n" if $?;
+
+    my $result_hr=eval { JSON::PP->new()->decode($output) };
+    die "wrangler $description returned invalid JSON\n"
+        if $@||ref($result_hr) ne 'HASH';
+    return $result_hr;
 
 }
 
@@ -412,100 +452,444 @@ sub next_query {
 
 __END__
 
+=encoding utf8
+
+=begin markdown
+
+# cloudflare-api #
+
+# NAME #
+
+cloudflare-api - call Cloudflare::API resource methods from the command line
+
+# SYNOPSIS #
+
+```sh
+cloudflare-api --resource r2 --action list_buckets --paginate --max-pages 2
+cloudflare-api --resource kv --action create_namespace --arg-json '{"title":"demo"}'
+cloudflare-api --resource workers --action upload_assets --arg my-app --arg dist --param prefix=/docs
+cloudflare-api --method GET --path /accounts --full-response
+```
+
+# DESCRIPTION #
+
+`cloudflare-api` calls a supported `Cloudflare::API` resource method or makes a low-level JSON request. It reads `CLOUDFLARE_API_TOKEN` and, for account-scoped methods, `CLOUDFLARE_ACCOUNT_ID` from the environment. It prints the decoded Cloudflare `result` as pretty JSON by default; `--full-response` retains the entire Cloudflare envelope. The script does not build Worker code or transfer R2 objects.
+
+Choose one mode: `--resource NAME --action NAME` for a named method, or `--method VERB --path /relative/path` for a low-level request. Positional arguments supplied with `--arg*` are passed in their command-line order. Named arguments supplied with `--param*` become method options, or query parameters in low-level mode. Other positional command-line arguments are rejected.
+
+# OPTIONS #
+
+## Selection and authentication ##
+
+* **--resource NAME, --action NAME**
+
+    Call a named method on `accounts`, `zones`, `workers`, `r2`, `kv`, `d1`, `queues`, `hyperdrive`, or `secrets_store`. Both options are required together. Only methods in the script's allowlist can be called; consult the resource module sidecars for arguments and results. The script does not expose every module method, including `workers()->download_script()`, whose body is not JSON.
+
+* **--method VERB, --path /relative/path**
+
+    Call a low-level JSON endpoint through `Cloudflare::API->request()`. Both options are required and cannot be combined with `--resource` or `--action`. The method is uppercased. The path must begin with exactly one slash and cannot be an absolute URL. At most one positional argument is accepted as a JSON request body; named parameters become query parameters. Dynamic path segments must be percent-encoded by the caller.
+
+* **--account-id ID**
+
+    Override `CLOUDFLARE_ACCOUNT_ID` and Wrangler account discovery for this invocation. Account-scoped methods require an ID; account and zone lookups do not.
+
+* **--auth=wrangler**
+
+    Run `wrangler auth token --json` and use its API token or refreshed OAuth token instead of the environment token. For an account-scoped named method, also run `wrangler whoami --json` and use the account ID when exactly one account is available. Select among multiple accounts with `--account-id` or `CLOUDFLARE_ACCOUNT_ID`; these explicit values take precedence and skip account discovery. Wrangler must be installed and logged in. Run `wrangler login` separately if necessary. Wrangler itself prioritizes an existing `CLOUDFLARE_API_TOKEN` over its OAuth login. API key and email credentials are not supported. No token option is accepted on the command line.
+
+## Positional and named arguments ##
+
+* **--arg VALUE**
+
+    Append a literal string positional argument. Repeat to supply several arguments in order.
+
+* **--arg-bool true|false, --arg-array JSON, --arg-hash JSON, --arg-json JSON, --arg-json-file FILE**
+
+    Append a typed positional argument. Boolean values are case-insensitive; array and hash forms require the matching JSON container. The JSON forms accept any JSON value, directly or read from a file. To pass a private JSON body without putting it in the process arguments, pipe it to `--arg-json-file /dev/stdin`.
+
+* **--arg-dumper-file FILE**
+
+    Evaluate a trusted Data::Dumper file as Perl and append its result. The file can execute arbitrary Perl code; use JSON for data from other sources.
+
+* **--param NAME=VALUE**
+
+    Pass one literal string named argument. The first `=` separates the name from the value, so a value may contain further equals signs. Names must begin with a letter or underscore and contain only letters, digits, or underscores. A repeated name replaces its earlier value.
+
+* **--param-bool NAME=true|false, --param-json NAME=JSON, --param-json-file NAME=FILE**
+
+    Pass a typed named argument. JSON file content is decoded before the method call. For list actions these usually become Cloudflare query filters; for other actions they can be method options such as `metadata` and `files` for a Worker upload.
+
+* **--param-dumper-file NAME=FILE**
+
+    Evaluate a trusted Data::Dumper file as Perl and pass its result under `NAME`. This can execute arbitrary Perl code; prefer JSON for untrusted input.
+
+## Worker static assets ##
+
+* **--asset FILE**
+
+    Append a local file to the asset source list. Repeat as needed. A bare filename uses its basename as its URL path.
+
+* **--asset-list-json FILE**
+
+    Append entries from a JSON array of filenames or objects with `path`, optional URL `name`, and optional `content_type`. Repeat for multiple files.
+
+* **--asset-list-text FILE, --asset-list-stdin**
+
+    Append one filename per line from a text file or standard input. Empty lines are ignored; spaces in filenames are preserved. The stdin option may appear only once. Sources combine in option order.
+
+    All four asset-list options require `--resource workers --action upload_assets` and exactly one string `--arg` naming the Worker. They create the method's second positional argument as a file array; do not also pass a directory, array, or path-map source argument. The array cannot be empty. Alternatively, pass a directory with a second `--arg`, or an asset array with `--arg-json-file`. `--param prefix=/docs` sets a URL prefix. The command prints the manifest and short-lived completion JWT returned by `upload_assets()`; asset upload alone does not deploy a Worker. Treat the JWT as a credential.
+
+## Output and pagination ##
+
+* **--output json|dumper**
+
+    Print pretty, canonical JSON (the default) or Perl Data::Dumper output to standard output.
+
+* **--full-response, --no-full-response**
+
+    Select the complete decoded Cloudflare envelope or its `result`. The default is the unwrapped `result`. With pagination, the selection applies to each page; the output is still an array. `upload_assets()` returns its own manifest and JWT structure rather than a Cloudflare envelope.
+
+* **--paginate, --no-paginate**
+
+    Follow cursor-based or numbered pages for named actions starting with `list`. The output is an array of page results, preserving page boundaries. Without a limit, every page reported by Cloudflare is fetched. Pagination is unavailable for raw requests and non-list actions.
+
+* **--max-pages N, --per-page N**
+
+    Limit pagination to a positive number of pages, or send positive `per_page=N` as a named list filter. `--max-pages` requires `--paginate`. Pagination stops when Cloudflare supplies no next page; a repeated cursor causes an error.
+
+## Help and diagnostics ##
+
+* **--help, -h, -?**
+
+    Print brief help and exit.
+
+* **--man**
+
+    Print the script's embedded manual and exit.
+
+* **--version**
+
+    Print the script name and `Cloudflare::API` version and exit.
+
+* **--dump-opt, --dump_opt, --opt**
+
+    Print parsed options, arguments, and parameters as Data::Dumper without creating a client or requiring a token. This output can disclose values. The script rejects this mode for selected Secrets Store, Worker secret, and Hyperdrive write actions, but other actions may also carry private data; do not use it with secrets.
+
+# ENVIRONMENT #
+
+* **CLOUDFLARE_API_TOKEN** — Bearer token used unless `--auth=wrangler` is supplied. Obtain a token with only the permissions needed for the requested action.
+* **CLOUDFLARE_ACCOUNT_ID** — Default account ID for account-scoped resource methods; overridden by `--account-id` and used in preference to Wrangler account discovery.
+
+# EXAMPLES #
+
+```sh
+cloudflare-api --resource zones --action list --param status=active
+cloudflare-api --resource kv --action list_namespaces \
+    --paginate --per-page 20 --max-pages 2 --full-response
+cloudflare-api --resource workers --action upload_assets \
+    --arg my-app --asset dist/index.html --asset-list-text images.txt \
+    --param prefix=/docs
+cloudflare-api --resource secrets_store --action create_secret \
+    --arg my-store --arg-json-file /dev/stdin < secrets.json
+```
+
+For a Worker version upload, pass the Worker name through `--arg` and prepared `metadata` and `files` through `--param-json-file NAME=FILE`. Version upload does not activate a deployment; consult `Cloudflare::API::Workers` for the staging and deployment sequence. A secret body supplied through standard input still appears in the command's output if Cloudflare returns it; handle the output accordingly.
+
+# RETURN VALUES AND ERRORS #
+
+Successful requests print the result followed by a newline and exit with status zero. JSON output preserves Cloudflare's response shape; a paginated list prints an array of pages. Input validation, missing credentials or account context, HTTP and transport errors, and Cloudflare responses reporting failure terminate with a non-zero status and a diagnostic on standard error. No write is automatically rolled back.
+
+# SEE ALSO #
+
+[Cloudflare::API](../lib/Cloudflare/API.pm.md), [Cloudflare::API::Workers](../lib/Cloudflare/API/Workers.pm.md), the other resource module sidecars, and `cloudflare-api --man`.
+
+# AUTHOR #
+
+Andrew Speer <andrew.speer@isolutions.com.au>
+
+# LICENSE and COPYRIGHT #
+
+Copyright (c) 2026 Andrew Speer. This software is free software under the same terms as Perl 5.
+
+=end markdown
+
+
 =head1 NAME
 
-cloudflare-api - invoke Cloudflare::API resource methods
+cloudflare-api - call Cloudflare::API resource methods from the command line
+
 
 =head1 SYNOPSIS
+
 
  cloudflare-api --resource r2 --action list_buckets --paginate --max-pages 2
  cloudflare-api --resource kv --action create_namespace --arg-json '{"title":"demo"}'
  cloudflare-api --resource workers --action upload_assets --arg my-app --arg dist --param prefix=/docs
- cloudflare-api --resource workers --action upload_assets --arg my-app --asset index.html --asset css/site.css
- find dist -type f | cloudflare-api --resource workers --action upload_assets --arg my-app --asset-list-stdin
- cloudflare-api --method GET --path /accounts --output dumper
+ cloudflare-api --method GET --path /accounts --full-response
 
 =head1 DESCRIPTION
 
-Reads C<CLOUDFLARE_API_TOKEN> and optionally C<CLOUDFLARE_ACCOUNT_ID> from
-the environment. Use C<--account-id> to select another account, or
-C<--auth=wrangler> to obtain a bearer token from Wrangler. No token option
-is provided, so credentials do not enter the shell command line.
-For Worker static assets, C<upload_assets> accepts a directory argument,
-recursively uploading its files, or an array argument supplied with
-C<--arg-json-file>. The asset list options below provide other ways to build
-that array. Use C<--param prefix=/docs> to place files beneath a URL prefix.
-Asset upload returns a completion token; it does not deploy the Worker.
+C<cloudflare-api> calls a supported C<Cloudflare::API> resource method or makes a low-level JSON request. It reads C<CLOUDFLARE_API_TOKEN> and, for account-scoped methods, C<CLOUDFLARE_ACCOUNT_ID> from the environment. It prints the decoded Cloudflare C<result> as pretty JSON by default; C<--full-response> retains the entire Cloudflare envelope. The script does not build Worker code or transfer R2 objects.
+
+Choose one mode: C<--resource NAME --action NAME> for a named method, or C<--method VERB --path /relative/path> for a low-level request. Positional arguments supplied with C<--arg*> are passed in their command-line order. Named arguments supplied with C<--param*> become method options, or query parameters in low-level mode. Other positional command-line arguments are rejected.
+
 
 =head1 OPTIONS
 
+
+=head2 Selection and authentication
+
 =over
 
-=item C<--auth=wrangler>
+=item *
 
-Run C<wrangler auth token --json> and use its API token or refreshed OAuth
-token. Wrangler must be installed and authenticated. If no Wrangler login
-exists, run C<wrangler login> separately. Wrangler gives an existing
-C<CLOUDFLARE_API_TOKEN> priority over its OAuth login. API key and email
-credentials are not supported by this command.
+B<--resource NAME, --action NAME>
 
-=item C<--resource NAME --action NAME>
+Call a named method on C<accounts>, C<zones>, C<workers>, C<r2>, C<kv>, C<d1>, C<queues>, C<hyperdrive>, or C<secrets_store>. Both options are required together. Only methods in the script's allowlist can be called; consult the resource module sidecars for arguments and results. The script does not expose every module method, including C<<< workers()->download_script() >>>, whose body is not JSON.
 
-Call a named resource method. Resource names are accounts, zones, workers,
-r2, kv, d1, queues, hyperdrive, and secrets_store. Use
-C<--method VERB --path /relative/path> for a
-low-level request; the path is relative to the API root, such as C</accounts>.
 
-=item C<--arg VALUE>, C<--arg-bool true|false>, C<--arg-array JSON>, C<--arg-hash JSON>, C<--arg-json JSON>, C<--arg-json-file FILE>, C<--arg-dumper-file FILE>
 
-Add positional method arguments in their command-line order. In raw mode at
-most one argument is accepted and is sent as the JSON body. A Data::Dumper
-file is evaluated as Perl code. Use this option ONLY with files you trust.
-For write-only values, use C<--arg-json-file /dev/stdin> and pipe in the JSON
-body so the value does not appear in the process command line.
+=item *
 
-=item C<--param NAME=VALUE>, C<--param-bool NAME=true|false>, C<--param-json NAME=JSON>, C<--param-json-file NAME=FILE>, C<--param-dumper-file NAME=FILE>
+B<--method VERB, --path /relative/path>
 
-Add named method arguments. The Data::Dumper file warning above also applies
-here. For list methods these are API query parameters; for raw mode all
-parameters are query parameters.
+Call a low-level JSON endpoint through C<<< Cloudflare::API->request() >>>. Both options are required and cannot be combined with C<--resource> or C<--action>. The method is uppercased. The path must begin with exactly one slash and cannot be an absolute URL. At most one positional argument is accepted as a JSON request body; named parameters become query parameters. Dynamic path segments must be percent-encoded by the caller.
 
-=item C<--asset FILE>, C<--asset-list-json FILE>, C<--asset-list-text FILE>, C<--asset-list-stdin>
 
-Build a file list for C<--resource workers --action upload_assets>. Supply the
-Worker name with one C<--arg> and do not supply a second source argument.
-Repeat C<--asset> for individual files. Repeat C<--asset-list-json> for JSON
-arrays of filenames or entries with C<path>, optional relative URL C<name>,
-and optional C<content_type>. C<--asset-list-text> reads one filename per
-line; C<--asset-list-stdin> does the same from standard input and may be used
-once. Blank lines are ignored, and spaces in a filename are preserved.
-Sources combine in option order. Each bare filename uses its basename as
-the Worker URL path; duplicate URL paths are rejected. These options cannot
-be mixed with the older directory, array, or path-map source argument.
 
-=item C<--output json|dumper>
+=item *
 
-Print JSON (default) or Data::Dumper output.
+B<--account-id ID>
 
-=item C<--full-response>
+Override C<CLOUDFLARE_ACCOUNT_ID> and Wrangler account discovery for this invocation. Account-scoped methods require an ID; account and zone lookups do not.
 
-Return each complete Cloudflare envelope rather than its C<result>.
 
-=item C<--paginate>, C<--max-pages N>, C<--per-page N>
 
-Follow cursor or numbered pages for list actions. The output is an array of
-page results, preserving page boundaries. C<--max-pages> limits fetched pages;
-otherwise all available pages are fetched. C<--per-page> sets C<per_page>.
+=item *
 
-=item C<--dump-opt>, C<--dump_opt>
+B<--auth=wrangler>
 
-Show parsed options without connecting to Cloudflare. This may reveal values
-supplied as arguments; do not use it with secrets.
+Run C<wrangler auth token --json> and use its API token or refreshed OAuth token instead of the environment token. For an account-scoped named method, also run C<wrangler whoami --json> and use the account ID when exactly one account is available. Select among multiple accounts with C<--account-id> or C<CLOUDFLARE_ACCOUNT_ID>; these explicit values take precedence and skip account discovery. Wrangler must be installed and logged in. Run C<wrangler login> separately if necessary. Wrangler itself prioritizes an existing C<CLOUDFLARE_API_TOKEN> over its OAuth login. API key and email credentials are not supported. No token option is accepted on the command line.
 
-=item C<--help>, C<--man>, C<--version>
 
-Show brief help, this manual, or the version.
 
 =back
+
+
+=head2 Positional and named arguments
+
+=over
+
+=item *
+
+B<--arg VALUE>
+
+Append a literal string positional argument. Repeat to supply several arguments in order.
+
+
+
+=item *
+
+B<--arg-bool true|false, --arg-array JSON, --arg-hash JSON, --arg-json JSON, --arg-json-file FILE>
+
+Append a typed positional argument. Boolean values are case-insensitive; array and hash forms require the matching JSON container. The JSON forms accept any JSON value, directly or read from a file. To pass a private JSON body without putting it in the process arguments, pipe it to C<--arg-json-file /dev/stdin>.
+
+
+
+=item *
+
+B<--arg-dumper-file FILE>
+
+Evaluate a trusted Data::Dumper file as Perl and append its result. The file can execute arbitrary Perl code; use JSON for data from other sources.
+
+
+
+=item *
+
+B<--param NAME=VALUE>
+
+Pass one literal string named argument. The first C<=> separates the name from the value, so a value may contain further equals signs. Names must begin with a letter or underscore and contain only letters, digits, or underscores. A repeated name replaces its earlier value.
+
+
+
+=item *
+
+B<--param-bool NAME=true|false, --param-json NAME=JSON, --param-json-file NAME=FILE>
+
+Pass a typed named argument. JSON file content is decoded before the method call. For list actions these usually become Cloudflare query filters; for other actions they can be method options such as C<metadata> and C<files> for a Worker upload.
+
+
+
+=item *
+
+B<--param-dumper-file NAME=FILE>
+
+Evaluate a trusted Data::Dumper file as Perl and pass its result under C<NAME>. This can execute arbitrary Perl code; prefer JSON for untrusted input.
+
+
+
+=back
+
+
+=head2 Worker static assets
+
+=over
+
+=item *
+
+B<--asset FILE>
+
+Append a local file to the asset source list. Repeat as needed. A bare filename uses its basename as its URL path.
+
+
+
+=item *
+
+B<--asset-list-json FILE>
+
+Append entries from a JSON array of filenames or objects with C<path>, optional URL C<name>, and optional C<content_type>. Repeat for multiple files.
+
+
+
+=item *
+
+B<--asset-list-text FILE, --asset-list-stdin>
+
+Append one filename per line from a text file or standard input. Empty lines are ignored; spaces in filenames are preserved. The stdin option may appear only once. Sources combine in option order.
+
+All four asset-list options require C<--resource workers --action upload_assets> and exactly one string C<--arg> naming the Worker. They create the method's second positional argument as a file array; do not also pass a directory, array, or path-map source argument. The array cannot be empty. Alternatively, pass a directory with a second C<--arg>, or an asset array with C<--arg-json-file>. C<--param prefix=/docs> sets a URL prefix. The command prints the manifest and short-lived completion JWT returned by C<upload_assets()>; asset upload alone does not deploy a Worker. Treat the JWT as a credential.
+
+
+
+=back
+
+
+=head2 Output and pagination
+
+=over
+
+=item *
+
+B<--output json|dumper>
+
+Print pretty, canonical JSON (the default) or Perl Data::Dumper output to standard output.
+
+
+
+=item *
+
+B<--full-response, --no-full-response>
+
+Select the complete decoded Cloudflare envelope or its C<result>. The default is the unwrapped C<result>. With pagination, the selection applies to each page; the output is still an array. C<upload_assets()> returns its own manifest and JWT structure rather than a Cloudflare envelope.
+
+
+
+=item *
+
+B<--paginate, --no-paginate>
+
+Follow cursor-based or numbered pages for named actions starting with C<list>. The output is an array of page results, preserving page boundaries. Without a limit, every page reported by Cloudflare is fetched. Pagination is unavailable for raw requests and non-list actions.
+
+
+
+=item *
+
+B<--max-pages N, --per-page N>
+
+Limit pagination to a positive number of pages, or send positive C<per_page=N> as a named list filter. C<--max-pages> requires C<--paginate>. Pagination stops when Cloudflare supplies no next page; a repeated cursor causes an error.
+
+
+
+=back
+
+
+=head2 Help and diagnostics
+
+=over
+
+=item *
+
+B<--help, -h, -?>
+
+Print brief help and exit.
+
+
+
+=item *
+
+B<--man>
+
+Print the script's embedded manual and exit.
+
+
+
+=item *
+
+B<--version>
+
+Print the script name and C<Cloudflare::API> version and exit.
+
+
+
+=item *
+
+B<--dump-opt, --dump_opt, --opt>
+
+Print parsed options, arguments, and parameters as Data::Dumper without creating a client or requiring a token. This output can disclose values. The script rejects this mode for selected Secrets Store, Worker secret, and Hyperdrive write actions, but other actions may also carry private data; do not use it with secrets.
+
+
+
+=back
+
+
+=head1 ENVIRONMENT
+
+=over
+
+=item *
+
+B<CLOUDFLARE_API_TOKEN> — Bearer token used unless C<--auth=wrangler> is supplied. Obtain a token with only the permissions needed for the requested action.
+
+
+=item *
+
+B<CLOUDFLARE_ACCOUNT_ID> — Default account ID for account-scoped resource methods; overridden by C<--account-id> and used in preference to Wrangler account discovery.
+
+
+=back
+
+
+=head1 EXAMPLES
+
+
+ cloudflare-api --resource zones --action list --param status=active
+ cloudflare-api --resource kv --action list_namespaces \
+     --paginate --per-page 20 --max-pages 2 --full-response
+ cloudflare-api --resource workers --action upload_assets \
+     --arg my-app --asset dist/index.html --asset-list-text images.txt \
+     --param prefix=/docs
+ cloudflare-api --resource secrets_store --action create_secret \
+     --arg my-store --arg-json-file /dev/stdin < secrets.json
+For a Worker version upload, pass the Worker name through C<--arg> and prepared C<metadata> and C<files> through C<--param-json-file NAME=FILE>. Version upload does not activate a deployment; consult C<Cloudflare::API::Workers> for the staging and deployment sequence. A secret body supplied through standard input still appears in the command's output if Cloudflare returns it; handle the output accordingly.
+
+
+=head1 RETURN VALUES AND ERRORS
+
+Successful requests print the result followed by a newline and exit with status zero. JSON output preserves Cloudflare's response shape; a paginated list prints an array of pages. Input validation, missing credentials or account context, HTTP and transport errors, and Cloudflare responses reporting failure terminate with a non-zero status and a diagnostic on standard error. No write is automatically rolled back.
+
+
+=head1 SEE ALSO
+
+L<Cloudflare::API|../lib/Cloudflare/API.pm.md>, L<Cloudflare::API::Workers|../lib/Cloudflare/API/Workers.pm.md>, the other resource module sidecars, and C<cloudflare-api --man>.
+
+
+=head1 AUTHOR
+
+Andrew Speer L<mailto:andrew.speer@isolutions.com.au>
+
+
+=head1 LICENSE and COPYRIGHT
+
+Copyright (c) 2026 Andrew Speer. This software is free software under the same terms as Perl 5.
 
 =cut

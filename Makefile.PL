@@ -17,8 +17,25 @@ WriteMakefile(
         'Digest::SHA'     => 0,
         'MIME::Base64'    => 0
     },
+    CONFIGURE_REQUIRES => {
+        'ExtUtils::MakeMaker' => '6.64'
+    },
     TEST_REQUIRES => {
-        'Test::More' => 0,
+        'Test::More' => '0.88',
         'File::Temp' => 0
+    },
+    META_MERGE => {
+        'meta-spec' => {version => 2},
+        resources   => {
+            bugtracker => {
+                web => 'https://gitea.isolutions.com.au/aspeer/pm-Cloudflare-API/issues'
+            },
+            homepage   => 'https://gitea.isolutions.com.au/aspeer/pm-Cloudflare-API',
+            repository => {
+                type => 'git',
+                url  => 'https://gitea.isolutions.com.au/aspeer/pm-Cloudflare-API.git',
+                web  => 'https://gitea.isolutions.com.au/aspeer/pm-Cloudflare-API'
+            }
+        }
     }
 );
