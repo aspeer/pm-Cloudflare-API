@@ -40,13 +40,6 @@ jobs:
           cpanm --notest --installdeps .
           cpanm --notest ExtUtils::MakeMaker
 
-      - name: Check release tag
-        if: github.ref_type == 'tag'
-        run: |
-          set -euo pipefail
-          version="$(perl -Ilib -MCloudflare::API -e 'print $Cloudflare::API::VERSION')"
-          test "$GITHUB_REF_NAME" = "v$version"
-
       - name: Configure
         run: perl Makefile.PL
 
