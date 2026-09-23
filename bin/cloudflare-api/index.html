@@ -1,0 +1,686 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>cloudflare-api - Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#cloudflare-api" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Documentation" class="md-header__button md-logo" aria-label="Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              cloudflare-api
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Documentation" class="md-nav__button md-logo" aria-label="Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Documentation
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cloudflare-api--credentials/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Credentials and account context
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cloudflare-api--perl-synopsis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    A first Perl script
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cloudflare-api--resource-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exploring the resource API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cloudflare-api--responses-and-errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Responses, pagination, and errors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cloudflare-api--lower-level-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    When there is no named method
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cloudflare-api--command-line/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Using the command-line script
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cloudflare-api--module-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Module reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cloudflare-api--utility-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Utility reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cloudflare-api--licensing-and-credits/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Licensing and credits
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="cloudflare-api">cloudflare-api</h1>
+<h1 id="name">NAME</h1>
+<p>cloudflare-api - call Cloudflare::API resource methods from the command line</p>
+<h1 id="synopsis">SYNOPSIS</h1>
+<div class="highlight"><pre><span></span><code>cloudflare-api<span class="w"> </span>--resource<span class="w"> </span>r2<span class="w"> </span>--action<span class="w"> </span>list_buckets<span class="w"> </span>--paginate<span class="w"> </span>--max-pages<span class="w"> </span><span class="m">2</span>
+cloudflare-api<span class="w"> </span>--resource<span class="w"> </span>kv<span class="w"> </span>--action<span class="w"> </span>create_namespace<span class="w"> </span>--arg-json<span class="w"> </span><span class="s1">&#39;{&quot;title&quot;:&quot;demo&quot;}&#39;</span>
+cloudflare-api<span class="w"> </span>--resource<span class="w"> </span>workers<span class="w"> </span>--action<span class="w"> </span>upload_assets<span class="w"> </span>--arg<span class="w"> </span>my-app<span class="w"> </span>--arg<span class="w"> </span>dist<span class="w"> </span>--param<span class="w"> </span><span class="nv">prefix</span><span class="o">=</span>/docs
+cloudflare-api<span class="w"> </span>--method<span class="w"> </span>GET<span class="w"> </span>--path<span class="w"> </span>/accounts<span class="w"> </span>--full-response
+</code></pre></div>
+<h1 id="description">DESCRIPTION</h1>
+<p><code>cloudflare-api</code> calls a supported <code>Cloudflare::API</code> resource method or makes a low-level JSON request. It reads <code>CLOUDFLARE_API_TOKEN</code> and, for account-scoped methods, <code>CLOUDFLARE_ACCOUNT_ID</code> from the environment. It prints the decoded Cloudflare <code>result</code> as pretty JSON by default; <code>--full-response</code> retains the entire Cloudflare envelope. The script does not build Worker code or transfer R2 objects.</p>
+<p>Choose one mode: <code>--resource NAME --action NAME</code> for a named method, or <code>--method VERB --path /relative/path</code> for a low-level request. Positional arguments supplied with <code>--arg*</code> are passed in their command-line order. Named arguments supplied with <code>--param*</code> become method options, or query parameters in low-level mode. Other positional command-line arguments are rejected.</p>
+<h1 id="options">OPTIONS</h1>
+<h2 id="selection-and-authentication">Selection and authentication</h2>
+<ul>
+<li>
+<p><strong>--resource NAME, --action NAME</strong></p>
+<p>Call a named method on <code>accounts</code>, <code>zones</code>, <code>workers</code>, <code>r2</code>, <code>kv</code>, <code>d1</code>, <code>queues</code>, <code>hyperdrive</code>, or <code>secrets_store</code>. Both options are required together. Only methods in the script's allowlist can be called; consult the resource module sidecars for arguments and results. The script does not expose every module method, including <code>workers()-&gt;download_script()</code>, whose body is not JSON.</p>
+</li>
+<li>
+<p><strong>--method VERB, --path /relative/path</strong></p>
+<p>Call a low-level JSON endpoint through <code>Cloudflare::API-&gt;request()</code>. Both options are required and cannot be combined with <code>--resource</code> or <code>--action</code>. The method is uppercased. The path must begin with exactly one slash and cannot be an absolute URL. At most one positional argument is accepted as a JSON request body; named parameters become query parameters. Dynamic path segments must be percent-encoded by the caller.</p>
+</li>
+<li>
+<p><strong>--account-id ID</strong></p>
+<p>Override <code>CLOUDFLARE_ACCOUNT_ID</code> and Wrangler account discovery for this invocation. Account-scoped methods require an ID; account and zone lookups do not.</p>
+</li>
+<li>
+<p><strong>--auth=wrangler</strong></p>
+<p>Run <code>wrangler auth token --json</code> and use its API token or refreshed OAuth token instead of the environment token. For an account-scoped named method, also run <code>wrangler whoami --json</code> and use the account ID when exactly one account is available. Select among multiple accounts with <code>--account-id</code> or <code>CLOUDFLARE_ACCOUNT_ID</code>; these explicit values take precedence and skip account discovery. Wrangler must be installed and logged in. Run <code>wrangler login</code> separately if necessary. Wrangler itself prioritizes an existing <code>CLOUDFLARE_API_TOKEN</code> over its OAuth login. API key and email credentials are not supported. No token option is accepted on the command line.</p>
+</li>
+</ul>
+<h2 id="positional-and-named-arguments">Positional and named arguments</h2>
+<ul>
+<li>
+<p><strong>--arg VALUE</strong></p>
+<p>Append a literal string positional argument. Repeat to supply several arguments in order.</p>
+</li>
+<li>
+<p><strong>--arg-bool true|false, --arg-array JSON, --arg-hash JSON, --arg-json JSON, --arg-json-file FILE</strong></p>
+<p>Append a typed positional argument. Boolean values are case-insensitive; array and hash forms require the matching JSON container. The JSON forms accept any JSON value, directly or read from a file. To pass a private JSON body without putting it in the process arguments, pipe it to <code>--arg-json-file /dev/stdin</code>.</p>
+</li>
+<li>
+<p><strong>--arg-dumper-file FILE</strong></p>
+<p>Evaluate a trusted Data::Dumper file as Perl and append its result. The file can execute arbitrary Perl code; use JSON for data from other sources.</p>
+</li>
+<li>
+<p><strong>--param NAME=VALUE</strong></p>
+<p>Pass one literal string named argument. The first <code>=</code> separates the name from the value, so a value may contain further equals signs. Names must begin with a letter or underscore and contain only letters, digits, or underscores. A repeated name replaces its earlier value.</p>
+</li>
+<li>
+<p><strong>--param-bool NAME=true|false, --param-json NAME=JSON, --param-json-file NAME=FILE</strong></p>
+<p>Pass a typed named argument. JSON file content is decoded before the method call. For list actions these usually become Cloudflare query filters; for other actions they can be method options such as <code>metadata</code> and <code>files</code> for a Worker upload.</p>
+</li>
+<li>
+<p><strong>--param-dumper-file NAME=FILE</strong></p>
+<p>Evaluate a trusted Data::Dumper file as Perl and pass its result under <code>NAME</code>. This can execute arbitrary Perl code; prefer JSON for untrusted input.</p>
+</li>
+</ul>
+<h2 id="worker-static-assets">Worker static assets</h2>
+<ul>
+<li>
+<p><strong>--asset FILE</strong></p>
+<p>Append a local file to the asset source list. Repeat as needed. A bare filename uses its basename as its URL path.</p>
+</li>
+<li>
+<p><strong>--asset-list-json FILE</strong></p>
+<p>Append entries from a JSON array of filenames or objects with <code>path</code>, optional URL <code>name</code>, and optional <code>content_type</code>. Repeat for multiple files.</p>
+</li>
+<li>
+<p><strong>--asset-list-text FILE, --asset-list-stdin</strong></p>
+<p>Append one filename per line from a text file or standard input. Empty lines are ignored; spaces in filenames are preserved. The stdin option may appear only once. Sources combine in option order.</p>
+<p>All four asset-list options require <code>--resource workers --action upload_assets</code> and exactly one string <code>--arg</code> naming the Worker. They create the method's second positional argument as a file array; do not also pass a directory, array, or path-map source argument. The array cannot be empty. Alternatively, pass a directory with a second <code>--arg</code>, or an asset array with <code>--arg-json-file</code>. <code>--param prefix=/docs</code> sets a URL prefix. The command prints the manifest and short-lived completion JWT returned by <code>upload_assets()</code>; asset upload alone does not deploy a Worker. Treat the JWT as a credential.</p>
+</li>
+</ul>
+<h2 id="output-and-pagination">Output and pagination</h2>
+<ul>
+<li>
+<p><strong>--output json|dumper</strong></p>
+<p>Print pretty, canonical JSON (the default) or Perl Data::Dumper output to standard output.</p>
+</li>
+<li>
+<p><strong>--full-response, --no-full-response</strong></p>
+<p>Select the complete decoded Cloudflare envelope or its <code>result</code>. The default is the unwrapped <code>result</code>. With pagination, the selection applies to each page; the output is still an array. <code>upload_assets()</code> returns its own manifest and JWT structure rather than a Cloudflare envelope.</p>
+</li>
+<li>
+<p><strong>--paginate, --no-paginate</strong></p>
+<p>Follow cursor-based or numbered pages for named actions starting with <code>list</code>. The output is an array of page results, preserving page boundaries. Without a limit, every page reported by Cloudflare is fetched. Pagination is unavailable for raw requests and non-list actions.</p>
+</li>
+<li>
+<p><strong>--max-pages N, --per-page N</strong></p>
+<p>Limit pagination to a positive number of pages, or send positive <code>per_page=N</code> as a named list filter. <code>--max-pages</code> requires <code>--paginate</code>. Pagination stops when Cloudflare supplies no next page; a repeated cursor causes an error.</p>
+</li>
+</ul>
+<h2 id="help-and-diagnostics">Help and diagnostics</h2>
+<ul>
+<li>
+<p><strong>--help, -h, -?</strong></p>
+<p>Print brief help and exit.</p>
+</li>
+<li>
+<p><strong>--man</strong></p>
+<p>Print the script's embedded manual and exit.</p>
+</li>
+<li>
+<p><strong>--version</strong></p>
+<p>Print the script name and <code>Cloudflare::API</code> version and exit.</p>
+</li>
+<li>
+<p><strong>--dump-opt, --dump_opt, --opt</strong></p>
+<p>Print parsed options, arguments, and parameters as Data::Dumper without creating a client or requiring a token. This output can disclose values. The script rejects this mode for selected Secrets Store, Worker secret, and Hyperdrive write actions, but other actions may also carry private data; do not use it with secrets.</p>
+</li>
+</ul>
+<h1 id="environment">ENVIRONMENT</h1>
+<ul>
+<li><strong>CLOUDFLARE_API_TOKEN</strong> — Bearer token used unless <code>--auth=wrangler</code> is supplied. Obtain a token with only the permissions needed for the requested action.</li>
+<li><strong>CLOUDFLARE_ACCOUNT_ID</strong> — Default account ID for account-scoped resource methods; overridden by <code>--account-id</code> and used in preference to Wrangler account discovery.</li>
+</ul>
+<h1 id="examples">EXAMPLES</h1>
+<div class="highlight"><pre><span></span><code>cloudflare-api<span class="w"> </span>--resource<span class="w"> </span>zones<span class="w"> </span>--action<span class="w"> </span>list<span class="w"> </span>--param<span class="w"> </span><span class="nv">status</span><span class="o">=</span>active
+cloudflare-api<span class="w"> </span>--resource<span class="w"> </span>kv<span class="w"> </span>--action<span class="w"> </span>list_namespaces<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--paginate<span class="w"> </span>--per-page<span class="w"> </span><span class="m">20</span><span class="w"> </span>--max-pages<span class="w"> </span><span class="m">2</span><span class="w"> </span>--full-response
+cloudflare-api<span class="w"> </span>--resource<span class="w"> </span>workers<span class="w"> </span>--action<span class="w"> </span>upload_assets<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--arg<span class="w"> </span>my-app<span class="w"> </span>--asset<span class="w"> </span>dist/index.html<span class="w"> </span>--asset-list-text<span class="w"> </span>images.txt<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--param<span class="w"> </span><span class="nv">prefix</span><span class="o">=</span>/docs
+cloudflare-api<span class="w"> </span>--resource<span class="w"> </span>secrets_store<span class="w"> </span>--action<span class="w"> </span>create_secret<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--arg<span class="w"> </span>my-store<span class="w"> </span>--arg-json-file<span class="w"> </span>/dev/stdin<span class="w"> </span>&lt;<span class="w"> </span>secrets.json
+</code></pre></div>
+<p>For a Worker version upload, pass the Worker name through <code>--arg</code> and prepared <code>metadata</code> and <code>files</code> through <code>--param-json-file NAME=FILE</code>. Version upload does not activate a deployment; consult <code>Cloudflare::API::Workers</code> for the staging and deployment sequence. A secret body supplied through standard input still appears in the command's output if Cloudflare returns it; handle the output accordingly.</p>
+<h1 id="return-values-and-errors">RETURN VALUES AND ERRORS</h1>
+<p>Successful requests print the result followed by a newline and exit with status zero. JSON output preserves Cloudflare's response shape; a paginated list prints an array of pages. Input validation, missing credentials or account context, HTTP and transport errors, and Cloudflare responses reporting failure terminate with a non-zero status and a diagnostic on standard error. No write is automatically rolled back.</p>
+<h1 id="see-also">SEE ALSO</h1>
+<p><a href="../../lib/Cloudflare/API.pm/">Cloudflare::API</a>, <a href="../../lib/Cloudflare/API/Workers.pm/">Cloudflare::API::Workers</a>, the other resource module sidecars, and <code>cloudflare-api --man</code>.</p>
+<h1 id="author">AUTHOR</h1>
+<p>Andrew Speer <a href="&#109;&#97;&#105;&#108;&#116;&#111;&#58;&#97;&#110;&#100;&#114;&#101;&#119;&#46;&#115;&#112;&#101;&#101;&#114;&#64;&#105;&#115;&#111;&#108;&#117;&#116;&#105;&#111;&#110;&#115;&#46;&#99;&#111;&#109;&#46;&#97;&#117;">&#97;&#110;&#100;&#114;&#101;&#119;&#46;&#115;&#112;&#101;&#101;&#114;&#64;&#105;&#115;&#111;&#108;&#117;&#116;&#105;&#111;&#110;&#115;&#46;&#99;&#111;&#109;&#46;&#97;&#117;</a></p>
+<h1 id="license-and-copyright">LICENSE and COPYRIGHT</h1>
+<p>Copyright (c) 2026 Andrew Speer. This software is free software under the same terms as Perl 5.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
