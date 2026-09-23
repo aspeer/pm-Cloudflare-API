@@ -38,7 +38,7 @@ use File::Spec;
 
 #  Version information
 #
-$VERSION='1.007';
+$VERSION='1.008';
 
 
 #  All done. Positive return
@@ -620,9 +620,19 @@ The prepared Worker must route requests to its asset binding, for example with `
 
 Andrew Speer <andrew.speer@isolutions.com.au>
 
-# LICENSE and COPYRIGHT #
+# LICENSE and COPYRIGHT
 
-Copyright (c) 2026 Andrew Speer. This software is free software under the same terms as Perl 5.
+This file is part of Cloudflare::API.
+
+This software is copyright (c) 2026 by Andrew Speer <andrew.speer@isolutions.com.au>.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
+Full license text is available at:
+
+<http://dev.perl.org/licenses/>
+
 
 =end markdown
 
