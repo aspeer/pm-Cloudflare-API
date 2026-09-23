@@ -92,6 +92,8 @@ sub delete_config {
 }
 __END__
 
+=encoding utf8
+
 =begin markdown
 
 # Cloudflare::API::Hyperdrive #
@@ -139,9 +141,6 @@ Andrew Speer <andrew.speer@isolutions.com.au>
 Copyright (c) 2026 Andrew Speer. This software is free software under the same terms as Perl 5.
 
 =end markdown
-
-
-=head1 Cloudflare::API::Hyperdrive
 
 
 =head1 NAME

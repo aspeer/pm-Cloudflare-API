@@ -280,9 +280,6 @@ Copyright (c) 2026 Andrew Speer. This software is free software; you can redistr
 =end markdown
 
 
-=head1 Cloudflare::API
-
-
 =head1 NAME
 
 Cloudflare::API - Perl client for Cloudflare resource management
@@ -381,7 +378,7 @@ B<L<Cloudflare::API::Resource|API/Resource.pm.md>> is the shared base class for 
 
 B<new(%options)>
 
-Construct the client. C<token> is a non-empty scalar and is mandatory after environment fallback. C<account_id> is an optional non-empty scalar. C<base_url> defaults to L<https://api.cloudflare.com/client/v4`>C< and must be an HTTPS URL.>timeoutC<,>retryC<,>hooksC<, and>transportC<pass through to HTTP::API::Core. Unknown options and invalid credentials or URL cause an exception. Automatic retries are disabled by default (>attempts => 1C<), since management writes can have side effects; pass>retryC<explicitly to change that policy. Returns a>Cloudflare::API`object.
+Construct the client. C<token> is a non-empty scalar and is mandatory after environment fallback. C<account_id> is an optional non-empty scalar. C<base_url> defaults to C<https://api.cloudflare.com/client/v4> and must be an HTTPS URL. C<timeout>, C<retry>, C<hooks>, and C<transport> pass through to HTTP::API::Core. Unknown options and invalid credentials or URL cause an exception. Automatic retries are disabled by default (C<<< attempts => 1 >>>), since management writes can have side effects; pass C<retry> explicitly to change that policy. Returns a C<Cloudflare::API> object.
 
 
 

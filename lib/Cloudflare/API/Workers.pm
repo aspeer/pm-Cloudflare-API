@@ -519,6 +519,8 @@ sub delete_route {
 }
 __END__
 
+=encoding utf8
+
 =begin markdown
 
 # Cloudflare::API::Workers #
@@ -620,9 +622,6 @@ Copyright (c) 2026 Andrew Speer. This software is free software under the same t
 =end markdown
 
 
-=head1 Cloudflare::API::Workers
-
-
 =head1 NAME
 
 Cloudflare::API::Workers - manage Worker scripts, versions, assets, and routes
@@ -667,12 +666,12 @@ B<download_script($name)> — Return an C<HTTP::API::Core::Response> object. Rea
 
 =item *
 
-B<upload_script($name, metadata => \%metadata, files => \@files)> — PUT a prepared module upload to the script endpoint, B<deploying it immediately>. Returns C<result>, or the envelope with C<<< full_response => 1 >>>. See B<Module uploads> below for required metadata and file entries.
+B<< upload_script($name, metadata => \%metadata, files => \@files) >> — PUT a prepared module upload to the script endpoint, B<deploying it immediately>. Returns C<result>, or the envelope with C<<< full_response => 1 >>>. See B<Module uploads> below for required metadata and file entries.
 
 
 =item *
 
-B<upload_version($name, metadata => \%metadata, files => \@files, %options)> — POST a prepared module upload as a version without activating it. Returns the version C<result>, or the envelope with C<<< full_response => 1 >>>. Optional C<<< bindings_inherit => 'strict' >>> asks Cloudflare to reject unresolved inherited bindings; no other value is accepted.
+B<< upload_version($name, metadata => \%metadata, files => \@files, %options) >> — POST a prepared module upload as a version without activating it. Returns the version C<result>, or the envelope with C<<< full_response => 1 >>>. Optional C<<< bindings_inherit => 'strict' >>> asks Cloudflare to reject unresolved inherited bindings; no other value is accepted.
 
 
 =item *
