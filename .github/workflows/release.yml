@@ -1,0 +1,135 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  perl-ci:
+    uses: ./.github/workflows/perl-ci.yml
+
+  build:
+    needs: perl-ci
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: 'v2.2.4'
+
+      - name: Set up Perl
+        uses: shogo82148/actions-setup-perl@v1.42.0
+        with:
+          perl-version: '5.44.0'
+
+      - name: Install build dependencies
+        run: |
+          cpanm --notest --installdeps .
+          cpanm --notest ExtUtils::MakeMaker
+
+      - name: Check release tag
+        if: github.ref_type == 'tag'
+        run: |
+          set -euo pipefail
+          version="$(perl -Ilib -MCloudflare::API -e 'print $Cloudflare::API::VERSION')"
+          test "$GITHUB_REF_NAME" = "v$version"
+
+      - name: Configure
+        run: perl Makefile.PL
+
+      - name: Run tests
+        run: make test
+
+      - name: Build distribution
+        run: make dist
+
+      - name: Sign distribution
+        id: sign-dist
+        run: |
+          set -euo pipefail
+          dist_file="$(find . -maxdepth 1 -type f -name '*.tar.gz' -print)"
+          test "$(printf '%s\n' "$dist_file" | sed '/^$/d' | wc -l)" -eq 1
+          dist_file="${dist_file#./}"
+          echo "dist_file=$dist_file" >> "$GITHUB_OUTPUT"
+          cosign sign-blob "$dist_file" --bundle "$dist_file.sigstore.json" --yes
+
+      - name: Verify distribution signature
+        run: |
+          cosign verify-blob "${{ steps.sign-dist.outputs.dist_file }}" \
+            --bundle "${{ steps.sign-dist.outputs.dist_file }}.sigstore.json" \
+            --certificate-identity="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/.github/workflows/release.yml@${GITHUB_REF}" \
+            --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
+
+      - name: Attest distribution provenance
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ steps.sign-dist.outputs.dist_file }}
+
+      - name: Upload distribution artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudflare-api-dist
+          path: |
+            *.tar.gz
+            *.tar.gz.sigstore.json
+
+  github-release:
+    needs: build
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download distribution artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: cloudflare-api-dist
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            *.tar.gz
+            *.tar.gz.sigstore.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  cpan-publish:
+    needs: github-release
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up Perl
+        uses: shogo82148/actions-setup-perl@v1.42.0
+        with:
+          perl-version: '5.44.0'
+
+      - name: Install CPAN uploader
+        run: cpanm --notest CPAN::Uploader
+
+      - name: Download distribution artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: cloudflare-api-dist
+
+      - name: Publish to CPAN
+        env:
+          CPAN_USERNAME: ${{ secrets.CPAN_USERNAME }}
+          CPAN_PASSWORD: ${{ secrets.CPAN_PASSWORD }}
+        run: cpan-upload -u "$CPAN_USERNAME" -p "$CPAN_PASSWORD" ./*.tar.gz
