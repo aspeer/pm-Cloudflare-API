@@ -22,7 +22,7 @@ use warnings;
 
 #  Version information
 #
-$VERSION='0.002';
+$VERSION='0.003';
 
 
 #  All done. Positive return
