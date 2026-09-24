@@ -240,6 +240,22 @@ is($exit, 0, 'line-based asset file accepted on its own');
 like($output, qr/'from stdin\.html'.*'last\.png'/s,
     'line-based asset file ignores blank lines');
 
+ok(!exists($INC{'Cloudflare/API/CLI/Completion.pm'}),
+    'completion renderer is not loaded with CLI functions');
+foreach my $shell (qw(bash zsh fish)) {
+    ($exit, $output)=run_cli(undef, "--generate-completion=$shell");
+    is($exit, 0, "$shell completion generated without request arguments");
+    like($output, qr/cloudflare-api/, "$shell completion names the command");
+    like($output, qr/workers/, "$shell completion includes resources");
+    like($output, qr/list_deployments/, "$shell completion includes actions");
+    like($output, qr/arg-json-file/, "$shell completion includes options");
+}
+
+($exit, $output)=run_cli(undef, '--generate-completion=powershell');
+isnt($exit, 0, 'unsupported completion shell rejected');
+like($output, qr/valid shells: bash, fish, zsh/,
+    'completion error lists supported shells');
+
 ($exit, $output)=run_cli(undef, '--version');
 is($exit, 0, 'version option accepted');
 is($output, "cloudflare-api $Cloudflare::API::VERSION\n", 'version output unchanged');

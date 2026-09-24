@@ -7,6 +7,8 @@ Revision history for Cloudflare::API
     Accept resource, action, and subsequent string method arguments as
     positional CLI operands, preserving order when mixed with typed --arg
     options.
+    Generate self-contained Bash, Zsh, and Fish command completion without
+    authentication or network access.
     Validate action argument counts and Worker inspection selectors before
     authentication, and list valid resources or actions in selection errors.
     Add GitHub Actions CI and signed CPAN/GitHub release automation with build

@@ -6,6 +6,8 @@ lib/Cloudflare/API.pm
 lib/Cloudflare/API.pm.md
 lib/Cloudflare/API/Accounts.pm
 lib/Cloudflare/API/Accounts.pm.md
+lib/Cloudflare/API/CLI/Completion.pm
+lib/Cloudflare/API/CLI/Completion.pm.md
 lib/Cloudflare/API/D1.pm
 lib/Cloudflare/API/D1.pm.md
 lib/Cloudflare/API/Error.pm

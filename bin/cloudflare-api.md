@@ -14,6 +14,7 @@ cloudflare-api --resource r2 --action list_buckets --paginate --max-pages 2
 cloudflare-api --resource kv --action create_namespace --arg-json '{"title":"demo"}'
 cloudflare-api --resource workers --action upload_assets --arg my-app --arg dist --param prefix=/docs
 cloudflare-api --method GET --path /accounts --full-response
+cloudflare-api --generate-completion=zsh > ~/.zfunc/_cloudflare-api
 ```
 
 # DESCRIPTION #
@@ -119,6 +120,18 @@ Choose one mode: `RESOURCE ACTION [ARG ...]` (or `--resource NAME --action NAME`
 * **--dump-opt, --dump_opt, --opt**
 
     Print parsed options, arguments, and parameters as Data::Dumper without creating a client or requiring a token. This output can disclose values. The script rejects this mode for selected Secrets Store, Worker secret, and Hyperdrive write actions, but other actions may also carry private data; do not use it with secrets.
+
+* **--generate-completion bash|zsh|fish**
+
+    Print a self-contained completion script for the selected shell and exit. Completion covers resources, their supported actions, command options, enumerated option values, and filenames accepted by file options. It performs no authentication, network access, or Cloudflare resource discovery. Generate the file once and load it through the shell's normal completion mechanism:
+
+    ```sh
+    cloudflare-api --generate-completion=bash > ~/.local/share/bash-completion/completions/cloudflare-api
+    cloudflare-api --generate-completion=zsh > ~/.zfunc/_cloudflare-api
+    cloudflare-api --generate-completion=fish > ~/.config/fish/completions/cloudflare-api.fish
+    ```
+
+    The destination directories must already be configured for the relevant shell. Regenerate the file after upgrading `Cloudflare::API` so that newly supported resources, actions, or options are included.
 
 # ENVIRONMENT #
 

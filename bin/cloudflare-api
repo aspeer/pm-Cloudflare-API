@@ -116,6 +116,49 @@ my %resource_method=(
 );
 
 
+#  Completion metadata is kept beside the parser it describes. The renderer is
+#  loaded only when completion output is requested.
+#
+my $completion_option_ar=[
+    ['--resource',             'resource', 'Cloudflare resource'],
+    ['--action',               'action',   'resource action'],
+    ['--method',               'method',   'raw HTTP method'],
+    ['--path',                 'value',    'raw API path'],
+    ['--account-id',           'value',    'Cloudflare account ID'],
+    ['--auth',                 'auth',     'authentication source'],
+    ['--output',               'output',   'output format'],
+    ['--full-response',        'flag',     'retain the Cloudflare response envelope'],
+    ['--no-full-response',     'flag',     'unwrap the Cloudflare result'],
+    ['--paginate',             'flag',     'follow result pages'],
+    ['--no-paginate',          'flag',     'do not follow result pages'],
+    ['--max-pages',            'value',    'maximum pages'],
+    ['--per-page',             'value',    'results per page'],
+    ['--help',                 'flag',     'show usage'],
+    ['-h',                     'flag',     'show usage'],
+    ['-?',                     'flag',     'show usage'],
+    ['--man',                  'flag',     'show the manual'],
+    ['--version',              'flag',     'show the version'],
+    ['--dump-opt',             'flag',     'show parsed arguments without a request'],
+    ['--asset',                'file',     'add a Worker asset file'],
+    ['--asset-list-json',      'file',     'read a JSON asset list'],
+    ['--asset-list-text',      'file',     'read a line-based asset list'],
+    ['--asset-list-stdin',     'flag',     'read an asset list from standard input'],
+    ['--arg',                  'value',    'append a string argument'],
+    ['--arg-bool',             'bool',     'append a boolean argument'],
+    ['--arg-array',            'value',    'append a JSON array argument'],
+    ['--arg-hash',             'value',    'append a JSON object argument'],
+    ['--arg-json',             'value',    'append a JSON argument'],
+    ['--arg-json-file',        'file',     'read a JSON argument from a file'],
+    ['--arg-dumper-file',      'file',     'read a Data::Dumper argument from a file'],
+    ['--param',                'value',    'set a string named parameter'],
+    ['--param-bool',           'value',    'set a boolean named parameter'],
+    ['--param-json',           'value',    'set a JSON named parameter'],
+    ['--param-json-file',      'file',     'read a JSON named parameter from a file'],
+    ['--param-dumper-file',    'file',     'read a Data::Dumper parameter from a file'],
+    ['--generate-completion',  'shell',    'generate offline shell completion']
+];
+
+
 #  Run main. Keep the script loadable by the local test suite.
 #
 exit main(\@ARGV) unless caller();
@@ -150,6 +193,7 @@ sub main {
         'help|h|?',
         'man',
         'version',
+        'generate-completion=s',
         'dump_opt|dump-opt|opt',
         'asset=s' => sub { push(@asset_source, ['file', $_[1]]) },
         'asset-list-json=s' => sub { push(@asset_source, ['json', $_[1]]) },
@@ -173,6 +217,21 @@ sub main {
     pod2usage(1) if $opt{'help'};
     pod2usage(-verbose => 2, -exitval => 0) if $opt{'man'};
     $opt{'version'} && do {print "$Script $VERSION\n"; return 0};
+
+
+
+    #  Generate completion before validating a request or resolving credentials
+    #
+    if (defined($opt{'generate-completion'})) {
+        require Cloudflare::API::CLI::Completion;
+        print Cloudflare::API::CLI::Completion::generate(
+            $opt{'generate-completion'}, {
+                resources => \%resource_method,
+                options   => $completion_option_ar
+            }
+        );
+        return 0;
+    }
 
 
 
@@ -573,6 +632,7 @@ cloudflare-api --resource r2 --action list_buckets --paginate --max-pages 2
 cloudflare-api --resource kv --action create_namespace --arg-json '{"title":"demo"}'
 cloudflare-api --resource workers --action upload_assets --arg my-app --arg dist --param prefix=/docs
 cloudflare-api --method GET --path /accounts --full-response
+cloudflare-api --generate-completion=zsh > ~/.zfunc/_cloudflare-api
 ```
 
 # DESCRIPTION #
@@ -679,6 +739,18 @@ Choose one mode: `RESOURCE ACTION [ARG ...]` (or `--resource NAME --action NAME`
 
     Print parsed options, arguments, and parameters as Data::Dumper without creating a client or requiring a token. This output can disclose values. The script rejects this mode for selected Secrets Store, Worker secret, and Hyperdrive write actions, but other actions may also carry private data; do not use it with secrets.
 
+* **--generate-completion bash|zsh|fish**
+
+    Print a self-contained completion script for the selected shell and exit. Completion covers resources, their supported actions, command options, enumerated option values, and filenames accepted by file options. It performs no authentication, network access, or Cloudflare resource discovery. Generate the file once and load it through the shell's normal completion mechanism:
+
+    ```sh
+    cloudflare-api --generate-completion=bash > ~/.local/share/bash-completion/completions/cloudflare-api
+    cloudflare-api --generate-completion=zsh > ~/.zfunc/_cloudflare-api
+    cloudflare-api --generate-completion=fish > ~/.config/fish/completions/cloudflare-api.fish
+    ```
+
+    The destination directories must already be configured for the relevant shell. Regenerate the file after upgrading `Cloudflare::API` so that newly supported resources, actions, or options are included.
+
 # ENVIRONMENT #
 
 * **CLOUDFLARE_API_TOKEN** — Bearer token used unless `--auth=wrangler` is supplied. Obtain a token with only the permissions needed for the requested action.
@@ -720,19 +792,9 @@ Successful requests print the result followed by a newline and exit with status 
 
 Andrew Speer <andrew.speer@isolutions.com.au>
 
-# LICENSE and COPYRIGHT
+# LICENSE and COPYRIGHT #
 
-This file is part of Cloudflare::API.
-
-This software is copyright (c) 2026 by Andrew Speer <andrew.speer@isolutions.com.au>.
-
-This is free software; you can redistribute it and/or modify it under
-the same terms as the Perl 5 programming language system itself.
-
-Full license text is available at:
-
-<http://dev.perl.org/licenses/>
-
+Copyright (c) 2026 Andrew Speer. This software is free software under the same terms as Perl 5.
 
 =end markdown
 
@@ -752,6 +814,7 @@ cloudflare-api - call Cloudflare::API resource methods from the command line
  cloudflare-api --resource kv --action create_namespace --arg-json '{"title":"demo"}'
  cloudflare-api --resource workers --action upload_assets --arg my-app --arg dist --param prefix=/docs
  cloudflare-api --method GET --path /accounts --full-response
+ cloudflare-api --generate-completion=zsh > ~/.zfunc/_cloudflare-api
 
 =head1 DESCRIPTION
 
@@ -962,6 +1025,20 @@ Print the script name and C<Cloudflare::API> version and exit.
 B<--dump-opt, --dump_opt, --opt>
 
 Print parsed options, arguments, and parameters as Data::Dumper without creating a client or requiring a token. This output can disclose values. The script rejects this mode for selected Secrets Store, Worker secret, and Hyperdrive write actions, but other actions may also carry private data; do not use it with secrets.
+
+
+
+=item *
+
+B<--generate-completion bash|zsh|fish>
+
+Print a self-contained completion script for the selected shell and exit. Completion covers resources, their supported actions, command options, enumerated option values, and filenames accepted by file options. It performs no authentication, network access, or Cloudflare resource discovery. Generate the file once and load it through the shell's normal completion mechanism:
+
+
+ cloudflare-api --generate-completion=bash > ~/.local/share/bash-completion/completions/cloudflare-api
+ cloudflare-api --generate-completion=zsh > ~/.zfunc/_cloudflare-api
+ cloudflare-api --generate-completion=fish > ~/.config/fish/completions/cloudflare-api.fish
+The destination directories must already be configured for the relevant shell. Regenerate the file after upgrading C<Cloudflare::API> so that newly supported resources, actions, or options are included.
 
 
 
