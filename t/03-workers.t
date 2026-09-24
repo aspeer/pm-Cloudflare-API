@@ -81,6 +81,81 @@ like($request[-1][1], qr{/zones/zone/workers/routes\z}, 'route path');
 $api_or->workers()->update_route('zone', 'route', { pattern => 'example.org/*' });
 is($request[-1][0], 'PUT', 'route update uses PUT');
 
+my @inspect_request;
+my $inspect_api_or=Cloudflare::API->new(
+    token => 'test-token', account_id => 'acct',
+    transport => sub {
+        push(@inspect_request, [@_]);
+        my $path=$_[1];
+        my $result;
+        if ($path=~m{/workers/scripts-search}) {
+            $result=[{ id => 'tag-alpha', script_name => 'alpha' }];
+        }
+        elsif ($path=~m{/workers/scripts/alpha/script-settings}) {
+            $result={ tags => ['production'], logpush => JSON::PP::false };
+        }
+        elsif ($path=~m{/workers/scripts/alpha/settings}) {
+            $result={ bindings => [{ name => 'DATA', type => 'kv_namespace' }] };
+        }
+        else {
+            $result=[
+                { id => 'alpha', tag => 'tag-alpha', etag => 'etag-alpha' },
+                { id => 'beta', tag => 'tag-beta', etag => 'etag-shared' },
+                { id => 'gamma', tag => 'tag-gamma', etag => 'etag-shared' }
+            ];
+        }
+        return { status => 200, headers => {}, content => encode_json({
+            success => JSON::PP::true, result => $result
+        }) };
+    }
+);
+my $inspect_workers_or=$inspect_api_or->workers();
+is_deeply($inspect_workers_or->search_scripts(name => 'alp'),
+    [{ id => 'tag-alpha', script_name => 'alpha' }], 'Worker search returns matches');
+like($inspect_request[-1][1], qr{/workers/scripts-search\?name=alp\z},
+    'Worker search uses discovery endpoint');
+is_deeply($inspect_workers_or->get_settings('alpha'),
+    { bindings => [{ name => 'DATA', type => 'kv_namespace' }] },
+    'Worker combined settings returned');
+like($inspect_request[-1][1], qr{/workers/scripts/alpha/settings\z},
+    'Worker combined settings path');
+is_deeply($inspect_workers_or->get_script_settings('alpha'),
+    { tags => ['production'], logpush => JSON::PP::false },
+    'Worker script settings returned');
+like($inspect_request[-1][1], qr{/workers/scripts/alpha/script-settings\z},
+    'Worker script settings path');
+
+my $inspect_request_no=@inspect_request;
+my $inspection_hr=$inspect_workers_or->inspect_script(name => 'alpha');
+is(@inspect_request-$inspect_request_no, 3, 'inspection makes three read requests');
+is($inspection_hr->{'script'}{'tag'}, 'tag-alpha', 'inspection resolves script name');
+is_deeply($inspection_hr->{'settings'}{'bindings'},
+    [{ name => 'DATA', type => 'kv_namespace' }], 'inspection includes combined settings');
+is_deeply($inspection_hr->{'script_settings'}{'tags'}, ['production'],
+    'inspection includes script settings');
+is($inspect_workers_or->inspect_script(tag => 'tag-alpha')->{'script'}{'id'},
+    'alpha', 'inspection resolves immutable tag');
+is($inspect_workers_or->inspect_script(etag => 'etag-alpha')->{'script'}{'id'},
+    'alpha', 'inspection resolves etag');
+
+my $inspect_error=eval { $inspect_workers_or->inspect_script(); 1 };
+ok(!$inspect_error&&$@=~/exactly one/, 'inspection requires a selector');
+$inspect_error=eval { $inspect_workers_or->inspect_script('name'); 1 };
+ok(!$inspect_error&&$@=~/name\/value pairs/, 'inspection rejects an odd selector list');
+$inspect_error=eval { $inspect_workers_or->inspect_script(name => 'alpha', tag => 'tag-alpha'); 1 };
+ok(!$inspect_error&&$@=~/exactly one/, 'inspection rejects multiple selectors');
+$inspect_error=eval { $inspect_workers_or->inspect_script(id => 'alpha'); 1 };
+ok(!$inspect_error&&$@=~/unknown inspect selector/, 'inspection rejects unknown selector');
+$inspect_error=eval { $inspect_workers_or->inspect_script(name => 'missing'); 1 };
+ok(!$inspect_error&&$@=~/no Worker script matches name 'missing'/,
+    'inspection reports no match');
+$inspect_error=eval { $inspect_workers_or->inspect_script(etag => 'etag-shared'); 1 };
+ok(!$inspect_error&&$@=~/multiple Worker scripts match etag 'etag-shared'/,
+    'inspection rejects ambiguous etag');
+$inspect_error=eval { $inspect_workers_or->inspect_script(name => 'alpha', full_response => 1); 1 };
+ok(!$inspect_error&&$@=~/full_response is unavailable/,
+    'inspection rejects full response mode');
+
 eval { $api_or->workers()->upload_script('worker',
     metadata => { main_module => 'missing.mjs' },
     files => [{ name => 'worker.mjs', content => 'x' }]) };

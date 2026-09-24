@@ -25,11 +25,17 @@ $workers->create_deployment('my-app', {
 
 Most Worker methods use the account ID configured on `Cloudflare::API`. Route methods instead take a zone ID explicitly. The module sends prepared modules and Cloudflare metadata; it does not build scripts, invoke npm or Wrangler, generate a Worker entry point, or create routes automatically.
 
+Cloudflare's Worker identifiers have distinct purposes. The `id` returned by `list_scripts()` is the script name used in API paths, `tag` is the immutable Worker ID, `tags` contains user-assigned labels, and `etag` identifies the current script content. The search API calls the immutable `tag` value `id`. `inspect_script()` uses the unambiguous selector names `name`, `tag`, and `etag`.
+
 JSON methods return Cloudflare's decoded `result` by default. Except where noted, pass `full_response => 1` to return the complete parsed envelope. List methods take named Cloudflare query parameters alongside `full_response`; this retains pagination information such as `result_info`. Script names, version IDs, secret names, and route IDs are percent-encoded in URLs.
 
 # METHODS #
 
 * **list_scripts(%query)** — List account Worker scripts. Returns `result`; `full_response => 1` retains pagination information.
+* **search_scripts(%query)** — Search scripts through Cloudflare's discovery endpoint. `name` accepts exact or partial names; `id` is an exact immutable Worker ID (called `tag` in list results). Ordering and pagination parameters pass through. Returns `result`; `full_response => 1` retains pagination information.
+* **get_settings($name, %options)** — Return the named Worker's combined script and current-version settings, including bindings, compatibility configuration, annotations, placement, and runtime limits.
+* **get_script_settings($name, %options)** — Return Worker-level settings such as user-assigned tags, Logpush, observability, and tail consumers.
+* **inspect_script(name => $name | tag => $tag | etag => $etag)** — Resolve exactly one Worker from the account inventory and return `{ script => ..., settings => ..., script_settings => ... }`. Exactly one non-empty selector is required. `name` matches the script name exactly; `tag` matches the immutable Worker ID; `etag` matches the current content hash. Zero or multiple matches cause an exception. This convenience method makes three read requests, has no `full_response` mode, and does not include source, versions, or deployments.
 * **download_script($name)** — Return an `HTTP::API::Core::Response` object. Read its `content()` for Worker source or multipart content; this response is not JSON-decoded and has no `full_response` option.
 * **upload_script($name, metadata => \%metadata, files => \@files)** — PUT a prepared module upload to the script endpoint, **deploying it immediately**. Returns `result`, or the envelope with `full_response => 1`. See **Module uploads** below for required metadata and file entries.
 * **upload_version($name, metadata => \%metadata, files => \@files, %options)** — POST a prepared module upload as a version without activating it. Returns the version `result`, or the envelope with `full_response => 1`. Optional `bindings_inherit => 'strict'` asks Cloudflare to reject unresolved inherited bindings; no other value is accepted.
@@ -51,7 +57,7 @@ JSON methods return Cloudflare's decoded `result` by default. Except where noted
 * **delete_route($zone_id, $route_id, %options)** — DELETE a route and return the endpoint's `result`.
 * **asset_content_type($extension)** — Return the built-in MIME type for a lowercase extension, or `application/octet-stream` when unknown. `upload_assets()` calls this for entries without an explicit `content_type`.
 
-Write bodies must be hash references. Missing account context, invalid identifiers or body shapes, and unknown upload options cause exceptions before or during the request. The `Cloudflare::API` man page describes HTTP, transport, and Cloudflare envelope failures.
+Write bodies must be hash references. Missing account context, invalid identifiers, selectors or body shapes, ambiguous inspection matches, and unknown upload options cause exceptions before or during the request. The `Cloudflare::API` man page describes HTTP, transport, and Cloudflare envelope failures.
 
 # MODULE UPLOADS #
 

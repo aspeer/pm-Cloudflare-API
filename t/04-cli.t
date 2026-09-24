@@ -81,6 +81,118 @@ like($output, qr/'per_page' => 5/, 'page size in parsed parameters');
 is($exit, 0, 'WebDyne-style dump_opt alias accepted');
 like($output, qr/'dump_opt' => 1/, 'dump_opt uses the canonical option key');
 
+($exit, $output)=run_cli(undef, qw(zones list --param status=active --dump-opt));
+is($exit, 0, 'resource and action accepted as positional operands');
+like($output, qr/'resource' => 'zones'/, 'positional resource recorded');
+like($output, qr/'action' => 'list'/, 'positional action recorded');
+
+($exit, $output)=run_cli(undef, qw(--resource zones list --dump-opt));
+is($exit, 0, 'positional action accepted with named resource');
+($exit, $output)=run_cli(undef, qw(zones --action list --dump-opt));
+is($exit, 0, 'positional resource accepted with named action');
+
+($exit, $output)=run_cli(undef,
+    qw(workers list_deployments my-worker --dump-opt));
+is($exit, 0, 'bare method argument accepted after resource and action');
+like($output, qr/'arguments' => \[\s*'my-worker'/,
+    'bare method argument becomes a string argument');
+
+{
+    local $ENV{'POSIXLY_CORRECT'}=1;
+    ($exit, $output)=run_cli(undef,
+        qw(workers list_deployments my-worker --dump-opt));
+    is($exit, 0, 'positional form permits later options in POSIX environments');
+}
+
+($exit, $output)=run_cli(undef,
+    qw(--resource workers list_deployments my-worker --dump-opt));
+is($exit, 0, 'bare action and method argument accepted with named resource');
+
+($exit, $output)=run_cli(undef,
+    qw(kv put_value namespace --arg key value --dump-opt));
+is($exit, 0, 'bare and explicit method arguments may be mixed');
+like($output, qr/'arguments' => \[\s*'namespace',\s*'key',\s*'value'/s,
+    'mixed method arguments preserve command-line order');
+
+($exit, $output)=run_cli(undef, 'd1', 'query_sql', 'database', 'SELECT ?',
+    '--arg-array', '[7]', '--dump-opt');
+is($exit, 0, 'typed argument accepted after bare method arguments');
+like($output, qr/'database'.*'SELECT \?'.*\[\s*7\s*\]/s,
+    'typed and bare arguments preserve command-line order');
+
+($exit, $output)=run_cli(undef,
+    qw(workers list_deployments --dump-opt -- --leading-dash));
+is($exit, 0, 'post-separator bare argument accepted');
+like($output, qr/'arguments' => \[\s*'--leading-dash'/,
+    'post-separator argument retains its leading dash');
+
+($exit, $output)=run_cli(undef,
+    qw(--method GET --path /accounts body --dump-opt));
+isnt($exit, 0, 'bare argument remains unavailable in raw request mode');
+like($output, qr/unexpected positional arguments/,
+    'raw request bare argument error is unchanged');
+
+($exit, $output)=run_cli(undef, qw(--dump-opt));
+isnt($exit, 0, 'missing resource rejected');
+like($output, qr/resource is required; valid resources: .*zones/,
+    'missing resource lists valid resources');
+
+($exit, $output)=run_cli(undef, qw(--resource zones --dump-opt));
+isnt($exit, 0, 'missing action rejected');
+like($output, qr/action is required for resource 'zones'; valid actions: get, list/,
+    'missing action lists resource actions');
+
+($exit, $output)=run_cli(undef, qw(--resource unknown --action list --dump-opt));
+isnt($exit, 0, 'unknown resource rejected');
+like($output, qr/unknown resource 'unknown'; valid resources: .*zones/,
+    'unknown resource lists valid resources');
+
+($exit, $output)=run_cli(undef, qw(--resource zones --action unknown --dump-opt));
+isnt($exit, 0, 'unknown action rejected');
+like($output, qr/unknown action 'unknown' for resource 'zones'; valid actions: get, list/,
+    'unknown action lists resource actions');
+
+($exit, $output)=run_cli(undef,
+    qw(--auth=wrangler --resource workers --action list_deployments));
+isnt($exit, 0, 'missing method argument rejected');
+like($output, qr/list_deployments.*requires at least 1 --arg value; 0 supplied/,
+    'missing method argument is explained before authentication');
+
+($exit, $output)=run_cli(undef,
+    qw(zones get --arg one --arg two --dump-opt));
+isnt($exit, 0, 'excess method argument rejected');
+like($output, qr/get.*accepts at most 1 --arg value; 2 supplied/,
+    'excess method argument is explained');
+
+($exit, $output)=run_cli(undef,
+    qw(workers inspect_script --param name=alpha --dump-opt));
+is($exit, 0, 'Worker inspection selector accepted');
+like($output, qr/'name' => 'alpha'/, 'Worker inspection selector passed by name');
+
+($exit, $output)=run_cli(undef, qw(workers inspect_script --dump-opt));
+isnt($exit, 0, 'missing Worker inspection selector rejected');
+like($output, qr/inspect_script requires exactly one of name, tag, or etag/,
+    'missing Worker inspection selector is explained');
+
+($exit, $output)=run_cli(undef,
+    qw(workers inspect_script --param name=alpha --param tag=worker-tag --dump-opt));
+isnt($exit, 0, 'multiple Worker inspection selectors rejected');
+like($output, qr/inspect_script requires exactly one/, 'multiple selectors are explained');
+
+($exit, $output)=run_cli(undef,
+    qw(workers inspect_script --param id=alpha --dump-opt));
+isnt($exit, 0, 'unknown Worker inspection selector rejected');
+like($output, qr/unknown inspect selector: id/, 'unknown inspection selector is identified');
+
+($exit, $output)=run_cli(undef,
+    qw(workers inspect_script --param name=alpha --full-response --dump-opt));
+isnt($exit, 0, 'Worker inspection full response rejected');
+like($output, qr/full_response is unavailable/, 'inspection full response error is clear');
+
+($exit, $output)=run_cli(undef,
+    qw(workers search_scripts --param name=alpha --paginate --dump-opt));
+is($exit, 0, 'Worker search accepts pagination');
+
 my ($asset_json_fh, $asset_json_fn)=tempfile();
 print($asset_json_fh '["from-json.html",{"path":"local/site.css","name":"css/site.css"}]');
 close($asset_json_fh);
@@ -265,7 +377,7 @@ is($exit, 0, 'Wrangler option accepted without fetching credentials in dump mode
 ($exit, $output)=run_cli(undef, qw(--resource r2 --action delete_bucket --arg x
     --paginate --dump-opt));
 isnt($exit, 0, 'pagination rejected for non-list action');
-like($output, qr/--paginate requires a list action/, 'pagination error is clear');
+like($output, qr/--paginate requires a list or search action/, 'pagination error is clear');
 
 ($exit, $output)=run_cli(undef, '--resource', 'secrets_store', '--action',
     'create_secret', '--arg', 'store', '--arg-json',

@@ -7,6 +7,9 @@ cloudflare-api - call Cloudflare::API resource methods from the command line
 # SYNOPSIS #
 
 ```sh
+cloudflare-api zones list --param status=active
+cloudflare-api workers inspect_script --param name=my-worker
+cloudflare-api workers list_deployments my-worker
 cloudflare-api --resource r2 --action list_buckets --paginate --max-pages 2
 cloudflare-api --resource kv --action create_namespace --arg-json '{"title":"demo"}'
 cloudflare-api --resource workers --action upload_assets --arg my-app --arg dist --param prefix=/docs
@@ -17,19 +20,19 @@ cloudflare-api --method GET --path /accounts --full-response
 
 `cloudflare-api` calls a supported `Cloudflare::API` resource method or makes a low-level JSON request. It reads `CLOUDFLARE_API_TOKEN` and, for account-scoped methods, `CLOUDFLARE_ACCOUNT_ID` from the environment. It prints the decoded Cloudflare `result` as pretty JSON by default; `--full-response` retains the entire Cloudflare envelope. The script does not build Worker code or transfer R2 objects.
 
-Choose one mode: `--resource NAME --action NAME` for a named method, or `--method VERB --path /relative/path` for a low-level request. Positional arguments supplied with `--arg*` are passed in their command-line order. Named arguments supplied with `--param*` become method options, or query parameters in low-level mode. Other positional command-line arguments are rejected.
+Choose one mode: `RESOURCE ACTION [ARG ...]` (or `--resource NAME --action NAME`) for a named method, or `--method VERB --path /relative/path` for a low-level request. The resource or action may be given positionally when its named option is omitted. Further bare operands become literal string method arguments, equivalent to `--arg`; they retain their command-line order when mixed with typed `--arg*` options. Named arguments supplied with `--param*` become method options, or query parameters in low-level mode. Bare arguments remain unavailable in low-level request mode.
 
 # OPTIONS #
 
 ## Selection and authentication ##
 
-* **--resource NAME, --action NAME**
+* **RESOURCE ACTION [ARG ...], --resource NAME, --action NAME**
 
-    Call a named method on `accounts`, `zones`, `workers`, `r2`, `kv`, `d1`, `queues`, `hyperdrive`, or `secrets_store`. Both options are required together. Only methods in the script's allowlist can be called; consult the resource module sidecars for arguments and results. The script does not expose every module method, including `workers()->download_script()`, whose body is not JSON.
+    Call a named method on `accounts`, `zones`, `workers`, `r2`, `kv`, `d1`, `queues`, `hyperdrive`, or `secrets_store`. The resource and action can be two positional operands, two named options, or one of each. Subsequent bare operands become string method arguments. Only methods in the script's allowlist can be called; missing or unknown selections list the valid resources or actions. Consult the resource module sidecars for arguments and results. The script does not expose every module method, including `workers()->download_script()`, whose body is not JSON.
 
 * **--method VERB, --path /relative/path**
 
-    Call a low-level JSON endpoint through `Cloudflare::API->request()`. Both options are required and cannot be combined with `--resource` or `--action`. The method is uppercased. The path must begin with exactly one slash and cannot be an absolute URL. At most one positional argument is accepted as a JSON request body; named parameters become query parameters. Dynamic path segments must be percent-encoded by the caller.
+    Call a low-level JSON endpoint through `Cloudflare::API->request()`. Both options are required and cannot be combined with `--resource` or `--action`. The method is uppercased. The path must begin with exactly one slash and cannot be an absolute URL. At most one body argument supplied with `--arg*` is accepted; named parameters become query parameters. Bare operands are rejected. Dynamic path segments must be percent-encoded by the caller.
 
 * **--account-id ID**
 
@@ -43,7 +46,7 @@ Choose one mode: `--resource NAME --action NAME` for a named method, or `--metho
 
 * **--arg VALUE**
 
-    Append a literal string positional argument. Repeat to supply several arguments in order.
+    Append a literal string method argument. Repeat to supply several arguments in order. For named resource actions, bare operands after the resource and action are equivalent; use `--arg` or `--` when a value could be mistaken for an option.
 
 * **--arg-bool true|false, --arg-array JSON, --arg-hash JSON, --arg-json JSON, --arg-json-file FILE**
 
@@ -93,7 +96,7 @@ Choose one mode: `--resource NAME --action NAME` for a named method, or `--metho
 
 * **--paginate, --no-paginate**
 
-    Follow cursor-based or numbered pages for named actions starting with `list`. The output is an array of page results, preserving page boundaries. Without a limit, every page reported by Cloudflare is fetched. Pagination is unavailable for raw requests and non-list actions.
+    Follow cursor-based or numbered pages for named actions starting with `list`, and for `workers search_scripts`. The output is an array of page results, preserving page boundaries. Without a limit, every page reported by Cloudflare is fetched. Pagination is unavailable for raw requests and other actions.
 
 * **--max-pages N, --per-page N**
 
@@ -125,7 +128,14 @@ Choose one mode: `--resource NAME --action NAME` for a named method, or `--metho
 # EXAMPLES #
 
 ```sh
-cloudflare-api --resource zones --action list --param status=active
+cloudflare-api zones list --param status=active
+cloudflare-api workers search_scripts --param name=orders --paginate
+cloudflare-api workers list_scripts --param tags=production:yes
+cloudflare-api workers inspect_script --param name=orders-api
+cloudflare-api workers inspect_script --param tag=IMMUTABLE_WORKER_ID
+cloudflare-api workers inspect_script --param etag=CONTENT_HASH
+cloudflare-api workers get_settings orders-api
+cloudflare-api workers list_deployments orders-api
 cloudflare-api --resource kv --action list_namespaces \
     --paginate --per-page 20 --max-pages 2 --full-response
 cloudflare-api --resource workers --action upload_assets \
@@ -137,9 +147,11 @@ cloudflare-api --resource secrets_store --action create_secret \
 
 For a Worker version upload, pass the Worker name through `--arg` and prepared `metadata` and `files` through `--param-json-file NAME=FILE`. Version upload does not activate a deployment; consult `Cloudflare::API::Workers` for the staging and deployment sequence. A secret body supplied through standard input still appears in the command's output if Cloudflare returns it; handle the output accordingly.
 
+Worker inspection accepts exactly one of `--param name=...`, `--param tag=...`, or `--param etag=...`. The name is the `id` printed by `list_scripts`; `tag` is Cloudflare's immutable Worker ID, while `etag` identifies current script content. Inspection returns the matching inventory entry, combined script/version settings, and Worker-level settings. It does not download source or include versions and deployments.
+
 # RETURN VALUES AND ERRORS #
 
-Successful requests print the result followed by a newline and exit with status zero. JSON output preserves Cloudflare's response shape; a paginated list prints an array of pages. Input validation, missing credentials or account context, HTTP and transport errors, and Cloudflare responses reporting failure terminate with a non-zero status and a diagnostic on standard error. No write is automatically rolled back.
+Successful requests print the result followed by a newline and exit with status zero. JSON output preserves Cloudflare's response shape; a paginated list prints an array of pages. The CLI checks the number of `--arg` values required by supported methods before authentication or network access. Input validation, missing credentials or account context, HTTP and transport errors, and Cloudflare responses reporting failure terminate with a non-zero status and a diagnostic on standard error. No write is automatically rolled back.
 
 # SEE ALSO #
 

@@ -62,6 +62,79 @@ sub list_scripts {
 }
 
 
+sub search_scripts {
+
+
+    #  Search uses Cloudflare's paginated script discovery endpoint
+    #
+    my ($self, %query)=@_;
+    my $full_response=delete($query{'full_response'});
+    return $self->api()->request('GET',
+        $self->api()->account_path('workers', 'scripts-search'),
+        query => \%query, full_response => $full_response);
+
+}
+
+
+sub get_settings {
+
+    my ($self, $name, %opt)=@_;
+    return $self->api()->request('GET',
+        $self->api()->account_path('workers', 'scripts', $name, 'settings'), %opt);
+
+}
+
+
+sub get_script_settings {
+
+    my ($self, $name, %opt)=@_;
+    return $self->api()->request('GET',
+        $self->api()->account_path('workers', 'scripts', $name, 'script-settings'), %opt);
+
+}
+
+
+sub inspect_script {
+
+
+    #  Resolve one script summary before retrieving both kinds of settings
+    #
+    my $self=shift();
+    die "inspect_script selectors must be name/value pairs\n" if @_ % 2;
+    my %selector=@_;
+    my $full_response=delete($selector{'full_response'});
+    die "full_response is unavailable for inspect_script\n" if $full_response;
+    die "inspect_script requires exactly one of name, tag, or etag\n"
+        unless keys(%selector)==1;
+    my ($selector)=keys(%selector);
+    die "unknown inspect selector: $selector\n"
+        unless $selector=~/\A(?:name|tag|etag)\z/;
+    my $value=$selector{$selector};
+    die "$selector must be a non-empty scalar\n"
+        unless defined($value)&&!ref($value)&&length($value);
+
+    my $script_ar=$self->list_scripts();
+    die "Worker script list must be an array reference\n"
+        unless ref($script_ar) eq 'ARRAY';
+    my $field=$selector eq 'name' ? 'id' : $selector;
+    my @match=grep {
+        ref($_) eq 'HASH'&&defined($_->{$field})&&$_->{$field} eq $value
+    } @$script_ar;
+    die "no Worker script matches $selector '$value'\n" unless @match;
+    die "multiple Worker scripts match $selector '$value'\n" if @match>1;
+
+    my $name=$match[0]{'id'};
+    die "matched Worker script has no name\n"
+        unless defined($name)&&!ref($name)&&length($name);
+    return {
+        script          => $match[0],
+        settings        => $self->get_settings($name),
+        script_settings => $self->get_script_settings($name)
+    };
+
+}
+
+
 sub download_script {
 
     my ($self, $name)=@_;
@@ -555,11 +628,17 @@ $workers->create_deployment('my-app', {
 
 Most Worker methods use the account ID configured on `Cloudflare::API`. Route methods instead take a zone ID explicitly. The module sends prepared modules and Cloudflare metadata; it does not build scripts, invoke npm or Wrangler, generate a Worker entry point, or create routes automatically.
 
+Cloudflare's Worker identifiers have distinct purposes. The `id` returned by `list_scripts()` is the script name used in API paths, `tag` is the immutable Worker ID, `tags` contains user-assigned labels, and `etag` identifies the current script content. The search API calls the immutable `tag` value `id`. `inspect_script()` uses the unambiguous selector names `name`, `tag`, and `etag`.
+
 JSON methods return Cloudflare's decoded `result` by default. Except where noted, pass `full_response => 1` to return the complete parsed envelope. List methods take named Cloudflare query parameters alongside `full_response`; this retains pagination information such as `result_info`. Script names, version IDs, secret names, and route IDs are percent-encoded in URLs.
 
 # METHODS #
 
 * **list_scripts(%query)** — List account Worker scripts. Returns `result`; `full_response => 1` retains pagination information.
+* **search_scripts(%query)** — Search scripts through Cloudflare's discovery endpoint. `name` accepts exact or partial names; `id` is an exact immutable Worker ID (called `tag` in list results). Ordering and pagination parameters pass through. Returns `result`; `full_response => 1` retains pagination information.
+* **get_settings($name, %options)** — Return the named Worker's combined script and current-version settings, including bindings, compatibility configuration, annotations, placement, and runtime limits.
+* **get_script_settings($name, %options)** — Return Worker-level settings such as user-assigned tags, Logpush, observability, and tail consumers.
+* **inspect_script(name => $name | tag => $tag | etag => $etag)** — Resolve exactly one Worker from the account inventory and return `{ script => ..., settings => ..., script_settings => ... }`. Exactly one non-empty selector is required. `name` matches the script name exactly; `tag` matches the immutable Worker ID; `etag` matches the current content hash. Zero or multiple matches cause an exception. This convenience method makes three read requests, has no `full_response` mode, and does not include source, versions, or deployments.
 * **download_script($name)** — Return an `HTTP::API::Core::Response` object. Read its `content()` for Worker source or multipart content; this response is not JSON-decoded and has no `full_response` option.
 * **upload_script($name, metadata => \%metadata, files => \@files)** — PUT a prepared module upload to the script endpoint, **deploying it immediately**. Returns `result`, or the envelope with `full_response => 1`. See **Module uploads** below for required metadata and file entries.
 * **upload_version($name, metadata => \%metadata, files => \@files, %options)** — POST a prepared module upload as a version without activating it. Returns the version `result`, or the envelope with `full_response => 1`. Optional `bindings_inherit => 'strict'` asks Cloudflare to reject unresolved inherited bindings; no other value is accepted.
@@ -581,7 +660,7 @@ JSON methods return Cloudflare's decoded `result` by default. Except where noted
 * **delete_route($zone_id, $route_id, %options)** — DELETE a route and return the endpoint's `result`.
 * **asset_content_type($extension)** — Return the built-in MIME type for a lowercase extension, or `application/octet-stream` when unknown. `upload_assets()` calls this for entries without an explicit `content_type`.
 
-Write bodies must be hash references. Missing account context, invalid identifiers or body shapes, and unknown upload options cause exceptions before or during the request. The `Cloudflare::API` man page describes HTTP, transport, and Cloudflare envelope failures.
+Write bodies must be hash references. Missing account context, invalid identifiers, selectors or body shapes, ambiguous inspection matches, and unknown upload options cause exceptions before or during the request. The `Cloudflare::API` man page describes HTTP, transport, and Cloudflare envelope failures.
 
 # MODULE UPLOADS #
 
@@ -620,19 +699,9 @@ The prepared Worker must route requests to its asset binding, for example with `
 
 Andrew Speer <andrew.speer@isolutions.com.au>
 
-# LICENSE and COPYRIGHT
+# LICENSE and COPYRIGHT #
 
-This file is part of Cloudflare::API.
-
-This software is copyright (c) 2026 by Andrew Speer <andrew.speer@isolutions.com.au>.
-
-This is free software; you can redistribute it and/or modify it under
-the same terms as the Perl 5 programming language system itself.
-
-Full license text is available at:
-
-<http://dev.perl.org/licenses/>
-
+Copyright (c) 2026 Andrew Speer. This software is free software under the same terms as Perl 5.
 
 =end markdown
 
@@ -662,6 +731,8 @@ Cloudflare::API::Workers - manage Worker scripts, versions, assets, and routes
 
 Most Worker methods use the account ID configured on C<Cloudflare::API>. Route methods instead take a zone ID explicitly. The module sends prepared modules and Cloudflare metadata; it does not build scripts, invoke npm or Wrangler, generate a Worker entry point, or create routes automatically.
 
+Cloudflare's Worker identifiers have distinct purposes. The C<id> returned by C<list_scripts()> is the script name used in API paths, C<tag> is the immutable Worker ID, C<tags> contains user-assigned labels, and C<etag> identifies the current script content. The search API calls the immutable C<tag> value C<id>. C<inspect_script()> uses the unambiguous selector names C<name>, C<tag>, and C<etag>.
+
 JSON methods return Cloudflare's decoded C<result> by default. Except where noted, pass C<<< full_response => 1 >>> to return the complete parsed envelope. List methods take named Cloudflare query parameters alongside C<full_response>; this retains pagination information such as C<result_info>. Script names, version IDs, secret names, and route IDs are percent-encoded in URLs.
 
 
@@ -672,6 +743,26 @@ JSON methods return Cloudflare's decoded C<result> by default. Except where note
 =item *
 
 B<list_scripts(%query)> — List account Worker scripts. Returns C<result>; C<<< full_response => 1 >>> retains pagination information.
+
+
+=item *
+
+B<search_scripts(%query)> — Search scripts through Cloudflare's discovery endpoint. C<name> accepts exact or partial names; C<id> is an exact immutable Worker ID (called C<tag> in list results). Ordering and pagination parameters pass through. Returns C<result>; C<<< full_response => 1 >>> retains pagination information.
+
+
+=item *
+
+B<get_settings($name, %options)> — Return the named Worker's combined script and current-version settings, including bindings, compatibility configuration, annotations, placement, and runtime limits.
+
+
+=item *
+
+B<get_script_settings($name, %options)> — Return Worker-level settings such as user-assigned tags, Logpush, observability, and tail consumers.
+
+
+=item *
+
+B<< inspect_script(name => $name | tag => $tag | etag => $etag) >> — Resolve exactly one Worker from the account inventory and return C<<< { script => ..., settings => ..., script_settings => ... } >>>. Exactly one non-empty selector is required. C<name> matches the script name exactly; C<tag> matches the immutable Worker ID; C<etag> matches the current content hash. Zero or multiple matches cause an exception. This convenience method makes three read requests, has no C<full_response> mode, and does not include source, versions, or deployments.
 
 
 =item *
@@ -776,7 +867,7 @@ B<asset_content_type($extension)> — Return the built-in MIME type for a lowerc
 
 =back
 
-Write bodies must be hash references. Missing account context, invalid identifiers or body shapes, and unknown upload options cause exceptions before or during the request. The C<Cloudflare::API> man page describes HTTP, transport, and Cloudflare envelope failures.
+Write bodies must be hash references. Missing account context, invalid identifiers, selectors or body shapes, ambiguous inspection matches, and unknown upload options cause exceptions before or during the request. The C<Cloudflare::API> man page describes HTTP, transport, and Cloudflare envelope failures.
 
 
 =head1 MODULE UPLOADS
