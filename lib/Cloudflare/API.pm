@@ -32,7 +32,7 @@ use Cloudflare::API::Error;
 
 #  Version information
 #
-$VERSION='1.010';
+$VERSION='1.011';
 
 
 #  All done. Positive return
@@ -396,9 +396,19 @@ List filters are named arguments sent as query parameters. Exceptions from HTTP 
 
 Andrew Speer <andrew.speer@isolutions.com.au>
 
-# LICENSE and COPYRIGHT #
+# LICENSE and COPYRIGHT
 
-Copyright (c) 2026 Andrew Speer. This software is free software; you can redistribute it and/or modify it under the same terms as the Perl 5 programming language system itself.
+This file is part of Cloudflare::API.
+
+This software is copyright (c) 2026 by Andrew Speer <andrew.speer@isolutions.com.au>.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
+Full license text is available at:
+
+<http://dev.perl.org/licenses/>
+
 
 =end markdown
 
