@@ -526,6 +526,7 @@ cloudflare-api<span class="w"> </span>--resource<span class="w"> </span>workers<
 <div class="highlight"><pre><span></span><code>cloudflare-api<span class="w"> </span>--resource<span class="w"> </span>kv<span class="w"> </span>--action<span class="w"> </span>list_namespaces<span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--paginate<span class="w"> </span>--per-page<span class="w"> </span><span class="m">20</span><span class="w"> </span>--max-pages<span class="w"> </span><span class="m">2</span><span class="w"> </span>--full-response
 </code></pre></div>
+<p>The command retains those pages in memory before printing them. For a very large result set, use <code>--max-pages</code> to bound the command or use the Perl _page() interface to process items incrementally.</p>
 <p>The lower-level form uses <code>--method</code> and <code>--path</code> instead of a resource and action:</p>
 <div class="highlight"><pre><span></span><code>cloudflare-api<span class="w"> </span>--method<span class="w"> </span>GET<span class="w"> </span>--path<span class="w"> </span>/accounts<span class="w"> </span>--full-response
 </code></pre></div>

@@ -512,7 +512,7 @@
 <span class="k">my</span><span class="w"> </span><span class="nv">$decoded_hr</span><span class="o">=</span><span class="nv">$api_or</span><span class="o">-&gt;</span><span class="n">request_full</span><span class="p">(</span><span class="s">&#39;GET&#39;</span><span class="p">,</span><span class="w"> </span><span class="s">&#39;/accounts&#39;</span><span class="p">);</span>
 <span class="k">my</span><span class="w"> </span><span class="nv">$response_or</span><span class="o">=</span><span class="nv">$api_or</span><span class="o">-&gt;</span><span class="n">response</span><span class="p">(</span><span class="s">&#39;GET&#39;</span><span class="p">,</span><span class="w"> </span><span class="s">&#39;/accounts&#39;</span><span class="p">);</span>
 </code></pre></div>
-<p>request() unwraps <code>result</code>, request_full() keeps the complete decoded Cloudflare response, and response() returns the <code>HTTP::API::Core::Response</code> object. Use response() for non-JSON content or when you need response details that the JSON helpers do not expose. raw_request() remains as a compatibility alias for response().</p>
+<p>request() unwraps <code>result</code>, request_full() keeps the complete decoded Cloudflare response, and response() returns the <code>HTTP::API::Core::Response</code> object. These low-level methods make one request and do not automatically paginate. Use response() for non-JSON content or when you need response details that the JSON helpers do not expose. raw_request() remains as a compatibility alias for response().</p>
 <div class="admonition important">
 <p class="admonition-title">Important</p>
 <p>Paths must start with one slash and cannot be absolute URLs, so a
