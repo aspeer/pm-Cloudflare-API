@@ -90,7 +90,7 @@ if (my $error=$@) {
 
 # DESCRIPTION #
 
-`Cloudflare::API` throws this exception when the HTTP request succeeds but the decoded JSON envelope contains `success: false`. HTTP and transport failures instead throw `HTTP::API::Core::Error`. The error object retains the original response and Cloudflare's error and message arrays.
+`Cloudflare::API` throws this exception when the HTTP request succeeds but the decoded Cloudflare JSON response contains `success: false`. HTTP and transport failures instead throw `HTTP::API::Core::Error`. The error object retains the original response and Cloudflare's error and message arrays.
 
 # METHODS #
 
@@ -108,19 +108,9 @@ if (my $error=$@) {
 
 Andrew Speer <andrew.speer@isolutions.com.au>
 
-# LICENSE and COPYRIGHT
+# LICENSE and COPYRIGHT #
 
-This file is part of Cloudflare::API.
-
-This software is copyright (c) 2026 by Andrew Speer <andrew.speer@isolutions.com.au>.
-
-This is free software; you can redistribute it and/or modify it under
-the same terms as the Perl 5 programming language system itself.
-
-Full license text is available at:
-
-<http://dev.perl.org/licenses/>
-
+Copyright (c) 2026 Andrew Speer. This software is free software under the same terms as Perl 5.
 
 =end markdown
 
@@ -143,7 +133,7 @@ Cloudflare::API::Error - exception for a failed Cloudflare JSON response
 
 =head1 DESCRIPTION
 
-C<Cloudflare::API> throws this exception when the HTTP request succeeds but the decoded JSON envelope contains C<success: false>. HTTP and transport failures instead throw C<HTTP::API::Core::Error>. The error object retains the original response and Cloudflare's error and message arrays.
+C<Cloudflare::API> throws this exception when the HTTP request succeeds but the decoded Cloudflare JSON response contains C<success: false>. HTTP and transport failures instead throw C<HTTP::API::Core::Error>. The error object retains the original response and Cloudflare's error and message arrays.
 
 
 =head1 METHODS
